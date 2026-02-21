@@ -546,7 +546,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Idoogroup. Todos los derechos reservados.</p></div>
+        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
       </div>
     );
   }
