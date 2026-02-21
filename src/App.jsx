@@ -527,7 +527,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 3: CREDENCIAL PÚBLICA (Exitosa) ---
+  // --- VISTA 3: CREDENCIAL (Pública o Interna) ---
   if (currentView === 'detail' && selectedCred) {
     const c = selectedCred;
     const hasEquipo = c.noSerie || c.tipo || c.modelo || c.fotoModelo;
@@ -539,6 +539,7 @@ export default function App() {
         <SuggestionModal />
         <DocumentViewerModal />
         
+        {/* Barra superior de navegación, solo para admin si NO está fingiendo ser público */}
         {!isPublicView && (
           <div className="w-full bg-[#374151] p-3 flex justify-between items-center shadow-md">
             <button onClick={() => setCurrentView('list')} className="text-white hover:bg-white/10 p-1.5 rounded-md transition"><ArrowLeft size={24} /></button>
@@ -604,6 +605,7 @@ export default function App() {
             </>
           )}
 
+          {/* VISTA PRIVADA DEL ADMIN: Solo muestra el botón de Obtener Enlace */}
           {!isPublicView && (
             <div className="mt-8 px-8 mb-4">
               <button onClick={() => setShowShareModal(true)} className="w-full bg-white text-[#222222] font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition">
@@ -612,7 +614,7 @@ export default function App() {
             </div>
           )}
 
-          {/* NUEVA SECCIÓN PÚBLICA: SUGERENCIAS Y FEEDBACK */}
+          {/* VISTA PÚBLICA (LO QUE SE VE POR FUERA): Sugerencias y Feedback */}
           {isPublicView && (
             <div className="mt-8 px-6 mb-4 space-y-3">
               <div className="my-6 border-b border-gray-700/50 mx-2"></div>
@@ -632,6 +634,19 @@ export default function App() {
               >
                 <AlertCircle size={14} /> Reportar un problema o bug de la página
               </a>
+
+              {/* Botón para regresar al panel si el admin solo estaba "probando" la vista pública */}
+              {isAdmin && (
+                <button 
+                  onClick={() => {
+                    setIsPublicView(false);
+                    setCurrentView('list');
+                  }} 
+                  className="w-full mt-6 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-medium py-3 px-4 rounded-xl border border-red-500/20 flex items-center justify-center gap-2 transition text-sm shadow-md"
+                >
+                  <ArrowLeft size={18} /> Volver a mi panel de Administrador
+                </button>
+              )}
             </div>
           )}
 
@@ -763,15 +778,32 @@ export default function App() {
                     <p className="text-xs font-bold text-blue-800 bg-blue-100 inline-block px-2 py-1 rounded mt-1 truncate max-w-full">{cred.empresa}</p>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 flex justify-between items-center">
-                  <button onClick={() => { setSelectedCred(cred); setCurrentView('detail'); window.scrollTo(0,0); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-1">
-                    Ver Credencial <Link size={14}/>
+                
+                {/* BOTONES ACTUALIZADOS EN EL DASHBOARD */}
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-100 flex justify-between items-center gap-2">
+                  
+                  {/* BOTÓN MAGICO: Abre la vista pública sin salir de la página ni pedir login de Vercel */}
+                  <button onClick={() => { 
+                    setSelectedCred(cred); 
+                    setIsPublicView(true); // Cambia directamente a la vista con botones de feedback
+                    setCurrentView('detail'); 
+                    window.scrollTo(0,0); 
+                  }} className="flex-1 text-sm font-bold text-white hover:bg-blue-700 bg-blue-600 px-3 py-2 rounded-md flex items-center justify-center gap-1 shadow-sm transition" title="Ver cómo se ve en modo público">
+                    <Eye size={14}/> Ver como Público
                   </button>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEditRecord(cred)} className="text-gray-400 hover:text-blue-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Editar"><Edit size={16} /></button>
-                    <button onClick={() => { if(window.confirm('¿Eliminar registro para siempre?')) handleDelete(cred.id); }} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
+
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { 
+                      setSelectedCred(cred); 
+                      setIsPublicView(false); // Vista interna (te da el botón de Obtener Enlace)
+                      setCurrentView('detail'); 
+                      window.scrollTo(0,0); 
+                    }} className="text-gray-500 hover:text-blue-600 bg-white p-2 rounded shadow-sm border border-gray-200" title="Ver Internamente"><Lock size={16} /></button>
+                    <button onClick={() => handleEditRecord(cred)} className="text-gray-500 hover:text-blue-600 bg-white p-2 rounded shadow-sm border border-gray-200" title="Editar"><Edit size={16} /></button>
+                    <button onClick={() => { if(window.confirm('¿Eliminar registro para siempre?')) handleDelete(cred.id); }} className="text-gray-500 hover:text-red-500 bg-white p-2 rounded shadow-sm border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
                   </div>
                 </div>
+
               </div>
             ))}
           </div>
