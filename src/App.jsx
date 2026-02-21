@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// IMPORTANTE: Cambia estas 2 líneas en tu VS Code quitando el "https://esm.sh/"
+import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const getEnvVar = (key) => {
+  try { return import.meta.env[key]; } catch (e) { return null; }
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 // Se inicializa solo si existen las variables
 const supabase = supabaseUrl && supabaseAnonKey 
@@ -17,6 +22,9 @@ const ADMIN_USERNAME = "FABIADMIN16";
 const ADMIN_PASSWORD = "Puchito090912";
 
 export default function App() {
+  // TELÓN DE SEGURIDAD: Evita que se muestre nada antes de tiempo
+  const [isInitializing, setIsInitializing] = useState(true);
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -25,11 +33,12 @@ export default function App() {
   const [credentials, setCredentials] = useState([]);
   const [currentView, setCurrentView] = useState('list'); 
   const [selectedCred, setSelectedCred] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(''); 
   const [isSaving, setIsSaving] = useState(false);
   
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [isPublicView, setIsPublicView] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   
@@ -46,7 +55,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase) {
       setErrorMsg("Falta configurar Supabase. Verifica tu archivo .env");
-      setIsLoading(false);
+      setIsInitializing(false);
       return;
     }
 
@@ -55,10 +64,12 @@ export default function App() {
 
     if (idEscaneado) {
       setIsPublicView(true);
-      cargarCredencialPorId(idEscaneado);
+      // Solo carga ESA credencial en específico y quita el telón
+      cargarCredencialPorId(idEscaneado).finally(() => setIsInitializing(false));
     } else {
       setIsPublicView(false);
-      cargarTodasLasCredenciales();
+      // NO carga la base de datos aquí por seguridad. Solo quita el telón para mostrar el Login.
+      setIsInitializing(false);
     }
   }, []);
 
@@ -69,6 +80,8 @@ export default function App() {
       setLoginError(false);
       setUsernameInput(''); 
       setPasswordInput('');
+      // LA BASE DE DATOS SOLO SE DESCARGA SI LA CONTRASEÑA ES CORRECTA
+      cargarTodasLasCredenciales();
     } else {
       setLoginError(true);
       setPasswordInput(''); 
@@ -93,7 +106,6 @@ export default function App() {
   };
 
   const cargarCredencialPorId = async (id) => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('credenciales')
@@ -105,13 +117,9 @@ export default function App() {
       if (data) {
         setSelectedCred(data);
         setCurrentView('detail');
-      } else {
-        setErrorMsg("Credencial no encontrada en el sistema.");
       }
     } catch (error) {
-      setErrorMsg("Enlace inválido o credencial eliminada.");
-    } finally {
-      setIsLoading(false);
+      console.error("Credencial no encontrada.");
     }
   };
 
@@ -316,6 +324,65 @@ export default function App() {
     );
   };
 
+  const SuggestionModal = () => {
+    const [sugerencia, setSugerencia] = useState('');
+    const [correo, setCorreo] = useState('');
+
+    if (!showSuggestionModal || !selectedCred) return null;
+
+    const handleEnviarSugerencia = () => {
+      const subject = encodeURIComponent(`Sugerencia de Cambio - Credencial: ${selectedCred.nombre} ${selectedCred.apellidos}`);
+      const body = encodeURIComponent(`Correo de contacto proporcionado: ${correo}\n\nSugerencia o cambios solicitados:\n${sugerencia}`);
+      window.location.href = `mailto:fabiansandtejpublic12@outlook.com?subject=${subject}&body=${body}`;
+      
+      setShowSuggestionModal(false);
+      setSugerencia('');
+      setCorreo('');
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-[#2d2d2d] rounded-2xl shadow-2xl max-w-sm w-full p-6 text-left relative border border-gray-700">
+          <button onClick={() => setShowSuggestionModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={24} /></button>
+          
+          <h3 className="text-xl font-bold text-white mb-2 pr-6 flex items-center gap-2">
+            <Edit size={20} className="text-blue-500" /> Sugerir Cambios
+          </h3>
+          
+          <p className="text-gray-400 text-[11px] mb-5 leading-relaxed bg-white/5 p-3 rounded-lg border border-white/5">
+            Lo verificaremos y haremos los cambios en un máximo de <strong>3 días hábiles</strong> o en caso de que surja algo más como querer agregar un nuevo documento se le contactará igual en 3 días máximo.
+          </p>
+          
+          <label className="block text-gray-300 text-xs font-bold mb-1">Correo para contactarte:</label>
+          <input 
+            type="email" 
+            placeholder="ejemplo@correo.com" 
+            value={correo} 
+            onChange={(e) => setCorreo(e.target.value)} 
+            className="w-full mb-4 p-3 bg-[#1a1a1a] border border-gray-600 rounded-xl text-white text-sm outline-none focus:border-blue-500 transition" 
+          />
+          
+          <label className="block text-gray-300 text-xs font-bold mb-1">¿Qué cambios sugieres?</label>
+          <textarea 
+            placeholder="Describe los cambios o documentos a agregar..." 
+            value={sugerencia} 
+            onChange={(e) => setSugerencia(e.target.value)} 
+            rows="4" 
+            className="w-full mb-5 p-3 bg-[#1a1a1a] border border-gray-600 rounded-xl text-white text-sm outline-none resize-none focus:border-blue-500 transition"
+          ></textarea>
+          
+          <button 
+            onClick={handleEnviarSugerencia} 
+            disabled={!sugerencia || !correo} 
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
+          >
+            Enviar Solicitud
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Visor de documentos avanzado (Optimizado para Celulares)
   const DocumentViewerModal = () => {
     const [blobUrl, setBlobUrl] = useState(null);
@@ -329,7 +396,6 @@ export default function App() {
       const isImage = docToView.base64.startsWith('data:image');
 
       if (!isImage) {
-        // Truco para Celulares: Convertir Base64 a un archivo temporal (Blob)
         try {
           const arr = docToView.base64.split(',');
           const mime = arr[0].match(/:(.*?);/)[1];
@@ -343,11 +409,10 @@ export default function App() {
           const url = URL.createObjectURL(blob);
           setBlobUrl(url);
 
-          // Limpieza de memoria
           return () => URL.revokeObjectURL(url);
         } catch (error) {
           console.error("Error al optimizar PDF para celular:", error);
-          setBlobUrl(docToView.base64); // Plan B
+          setBlobUrl(docToView.base64); 
         }
       } else {
         setBlobUrl(docToView.base64);
@@ -365,7 +430,6 @@ export default function App() {
             {!isImage && <p className="text-gray-400 text-[10px] sm:text-xs">Si la pantalla está blanca, pulsa el botón azul 👉</p>}
           </div>
           
-          {/* Botón de respaldo para celulares */}
           {!isImage && (
             <a href={blobUrl || docToView.base64} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md whitespace-nowrap flex items-center gap-2">
               <FileText size={16} /> Abrir PDF
@@ -388,7 +452,40 @@ export default function App() {
     );
   };
 
-  // --- VISTA 0: LOGIN ---
+
+  // ==========================================
+  // VISTAS PRINCIPALES DE LA APLICACIÓN
+  // ==========================================
+
+  // --- VISTA 0: TELÓN DE CARGA INICIAL (Seguridad) ---
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-center font-sans">
+        <Shield className="text-blue-500 mb-6 animate-pulse" size={56} />
+        <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 animate-[pulse_1.5s_ease-in-out_infinite] w-full origin-left"></div>
+        </div>
+        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mt-4">Iniciando Sistema Seguro</p>
+      </div>
+    );
+  }
+
+  // --- VISTA 1: CREDENCIAL INVÁLIDA (Link Roto/Falso) ---
+  if (isPublicView && !selectedCred) {
+    return (
+      <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
+        <Analytics />
+        <AlertCircle className="text-red-500 mb-6" size={64} />
+        <h2 className="text-white text-2xl font-bold mb-2">Credencial no encontrada</h2>
+        <p className="text-gray-400 text-sm max-w-sm mb-8 leading-relaxed">
+          El enlace que intentas abrir es inválido o la credencial ha sido dada de baja del sistema.
+        </p>
+        <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad Idoogroup</p>
+      </div>
+    );
+  }
+
+  // --- VISTA 2: LOGIN DE ADMINISTRADOR ---
   if (!isPublicView && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
@@ -429,7 +526,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 1: CREDENCIAL PÚBLICA ---
+  // --- VISTA 3: CREDENCIAL PÚBLICA (Exitosa) ---
   if (currentView === 'detail' && selectedCred) {
     const c = selectedCred;
     const hasEquipo = c.noSerie || c.tipo || c.modelo || c.fotoModelo;
@@ -438,6 +535,7 @@ export default function App() {
       <div className="min-h-screen bg-[#222222] flex flex-col items-center relative font-sans">
         <Analytics />
         <ModalShare />
+        <SuggestionModal />
         <DocumentViewerModal />
         
         {!isPublicView && (
@@ -512,13 +610,37 @@ export default function App() {
               </button>
             </div>
           )}
+
+          {/* NUEVA SECCIÓN PÚBLICA: SUGERENCIAS Y FEEDBACK */}
+          {isPublicView && (
+            <div className="mt-8 px-6 mb-4 space-y-3">
+              <div className="my-6 border-b border-gray-700/50 mx-2"></div>
+              
+              {/* Botón de Sugerencias */}
+              <button 
+                onClick={() => setShowSuggestionModal(true)} 
+                className="w-full bg-[#374151] hover:bg-[#4b5563] text-white font-medium py-3 px-4 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition text-sm shadow-md"
+              >
+                <Edit size={18} /> Solicitar cambios en credencial
+              </button>
+              
+              {/* Botón de Feedback (Bugs) */}
+              <a 
+                href="mailto:fabiansandtejpublic12@outlook.com?subject=Reporte%20de%20Bug%20o%20Problema%20-%20Sistema%20de%20Credenciales" 
+                className="w-full text-gray-500 hover:text-gray-300 font-medium py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition text-xs"
+              >
+                <AlertCircle size={14} /> Reportar un problema o bug de la página
+              </a>
+            </div>
+          )}
+
         </div>
         <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
       </div>
     );
   }
 
-  // --- VISTA 2: FORMULARIO ---
+  // --- VISTA 4: FORMULARIO DE EDICIÓN / CREACIÓN ---
   if (currentView === 'form') {
     return (
       <div className="min-h-screen bg-gray-100 p-4 md:p-8">
@@ -601,7 +723,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 3: DASHBOARD ---
+  // --- VISTA 5: DASHBOARD DE ADMINISTRADOR (Principal) ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
       <Analytics />
