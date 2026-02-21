@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, QrCode, X, Check, Lock, Key, Edit } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, QrCode, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
+import { Analytics } from '@vercel/analytics/react'; // <-- Analíticas de Vercel añadidas
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -13,8 +14,8 @@ const supabase = supabaseUrl && supabaseAnonKey
   : null;
 
 // --- CREDENCIALES DE ADMINISTRADOR ---
-const ADMIN_USERNAME = "FABIADMIN16";
-const ADMIN_PASSWORD = "Data16FAB";
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "admin123";
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -32,8 +33,10 @@ export default function App() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [isPublicView, setIsPublicView] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  
+  // Estado para el visor de documentos internos
+  const [docToView, setDocToView] = useState(null);
 
-  // Agregamos 'id: null' para saber si estamos creando o editando
   const [formData, setFormData] = useState({
     id: null,
     nombre: '', apellidos: '', empresa: '', puesto: '',
@@ -203,10 +206,9 @@ export default function App() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- LÓGICA PARA NUEVO Y EDITAR ---
   const handleNewRecord = () => {
     setFormData({
-      id: null, // Aseguramos que sea null para crear uno nuevo
+      id: null, 
       nombre: '', apellidos: '', empresa: '', puesto: '',
       noSerie: '', tipo: '', modelo: '', color: '#1a1a1a', 
       fotoPerfil: '', fotoModelo: '', documentos: [] 
@@ -216,7 +218,6 @@ export default function App() {
   };
 
   const handleEditRecord = (cred) => {
-    // Cargamos toda la data de esa credencial al formulario, incluyendo su ID
     setFormData({ ...cred });
     setCurrentView('form');
     window.scrollTo(0,0);
@@ -234,22 +235,14 @@ export default function App() {
     setIsSaving(true);
     try {
       if (formData.id) {
-        // ACTUALIZAR REGISTRO EXISTENTE
-        const { error } = await supabase
-          .from('credenciales')
-          .update(formData)
-          .eq('id', formData.id);
+        const { error } = await supabase.from('credenciales').update(formData).eq('id', formData.id);
         if (error) throw error;
       } else {
-        // CREAR REGISTRO NUEVO
-        const { id, ...dataToInsert } = formData; // Quitamos el id null para que Supabase genere uno
-        const { error } = await supabase
-          .from('credenciales')
-          .insert([dataToInsert]);
+        const { id, ...dataToInsert } = formData; 
+        const { error } = await supabase.from('credenciales').insert([dataToInsert]);
         if (error) throw error;
       }
       
-      // Limpiamos el formulario
       setFormData({
         id: null, nombre: '', apellidos: '', empresa: '', puesto: '',
         noSerie: '', tipo: '', modelo: '', color: '#1a1a1a',
@@ -276,6 +269,7 @@ export default function App() {
     }
   };
 
+  // --- MODALES ---
   const ErrorModal = () => {
     if (!errorMsg) return null;
     return (
@@ -319,10 +313,33 @@ export default function App() {
     );
   };
 
+  // NUEVO: Modal visor de documentos
+  const DocumentViewerModal = () => {
+    if (!docToView) return null;
+    return (
+      <div className="fixed inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div className="w-full max-w-4xl flex justify-between items-center mb-4">
+          <h3 className="text-white font-bold text-lg truncate pr-4">{docToView.nombre}</h3>
+          <button onClick={() => setDocToView(null)} className="text-white hover:text-red-400 bg-white/10 hover:bg-white/20 p-2 rounded-xl transition">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="w-full flex-grow max-h-[85vh] bg-white/5 rounded-2xl overflow-hidden flex items-center justify-center border border-white/10">
+          {docToView.base64.startsWith('data:image') ? (
+            <img src={docToView.base64} alt={docToView.nombre} className="max-w-full max-h-full object-contain" />
+          ) : (
+            <iframe src={`${docToView.base64}#toolbar=0`} className="w-full h-full border-0 bg-white" title={docToView.nombre}></iframe>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // --- VISTA 0: LOGIN ---
   if (!isPublicView && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
+        <Analytics /> {/* Analíticas añadidas */}
         <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden border border-gray-200">
           <div className="bg-[#222222] p-8 text-center border-b-4 border-blue-600">
             <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
@@ -366,7 +383,10 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-[#222222] flex flex-col items-center relative font-sans">
+        <Analytics /> {/* Analíticas añadidas */}
         <ModalQR />
+        <DocumentViewerModal />
+        
         {!isPublicView && (
           <div className="w-full bg-[#374151] p-3 flex justify-between items-center shadow-md">
             <button onClick={() => setCurrentView('list')} className="text-white hover:bg-white/10 p-1.5 rounded-md transition"><ArrowLeft size={24} /></button>
@@ -385,14 +405,22 @@ export default function App() {
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Empresa</div><div className="text-left text-white text-sm">{c.empresa || '-'}</div></div>
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Puesto</div><div className="text-left text-white text-sm">{c.puesto || '-'}</div></div>
           </div>
+          
           <div className="my-2 border-b border-gray-700/50 mx-4"></div>
-          <div className="mt-4 mb-2 px-4"><h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest text-center mb-4">Archivos Descargables</h3></div>
+          <div className="mt-4 mb-2 px-4"><h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest text-center mb-4">Archivos del Personal</h3></div>
+          
           {c.documentos && c.documentos.length > 0 ? (
             c.documentos.map((doc) => (
-              <div key={doc.id} className="grid grid-cols-[1fr_1fr] gap-4 items-center w-full mb-3 px-4">
-                <div className="text-right font-bold text-white text-sm leading-tight pr-2 break-words">{doc.nombre}</div>
-                <div className="flex justify-start">
-                  {doc.base64 ? <a href={doc.base64} download={`${doc.nombre}.${doc.extension || 'pdf'}`} className="bg-[#5b9bd5] hover:bg-[#4a89dc] text-white px-4 py-1.5 rounded-md flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">Descargar <FileText size={16} /></a> : <span className="text-gray-500 text-sm italic px-2 py-1.5">No subido</span>}
+              <div key={doc.id} className="grid grid-cols-[1fr_auto] gap-4 items-center w-full mb-3 px-6">
+                <div className="text-left font-bold text-white text-sm leading-tight break-words">{doc.nombre}</div>
+                <div className="flex justify-end">
+                  {doc.base64 ? (
+                    <button onClick={() => setDocToView(doc)} className="bg-[#5b9bd5] hover:bg-[#4a89dc] text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
+                      Ver Documento <Eye size={16} />
+                    </button>
+                  ) : (
+                    <span className="text-gray-500 text-sm italic px-2 py-1.5">No subido</span>
+                  )}
                 </div>
               </div>
             ))
@@ -441,6 +469,7 @@ export default function App() {
   if (currentView === 'form') {
     return (
       <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+        <Analytics /> {/* Analíticas añadidas */}
         <ErrorModal />
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden">
           <div className="bg-blue-600 p-6 text-white flex items-center gap-4">
@@ -522,6 +551,7 @@ export default function App() {
   // --- VISTA 3: DASHBOARD ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
+      <Analytics /> {/* Analíticas añadidas */}
       <ErrorModal />
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
