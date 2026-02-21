@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, QrCode, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { QRCodeSVG } from 'https://esm.sh/qrcode.react@3';
 import { Analytics } from '@vercel/analytics/react';
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
@@ -30,7 +29,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState(''); 
   const [isSaving, setIsSaving] = useState(false);
   
-  const [showQRModal, setShowQRModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [isPublicView, setIsPublicView] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   
@@ -286,12 +285,12 @@ export default function App() {
     );
   };
 
-  const ModalQR = () => {
-    if (!showQRModal || !selectedCred) return null;
-    const qrUrl = `${window.location.origin}/?id=${selectedCred.id}`;
+  const ModalShare = () => {
+    if (!showShareModal || !selectedCred) return null;
+    const url = `${window.location.origin}/?id=${selectedCred.id}`;
 
     const copiarEnlace = () => {
-      navigator.clipboard.writeText(qrUrl);
+      navigator.clipboard.writeText(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 3000);
     };
@@ -299,14 +298,18 @@ export default function App() {
     return (
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div className="bg-[#2d2d2d] rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center relative border border-gray-700">
-          <button onClick={() => setShowQRModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={24} /></button>
-          <div className="bg-white p-4 rounded-xl inline-block mb-6 mt-4">
-            <QRCodeSVG value={qrUrl} size={200} level="H" includeMargin={false} />
+          <button onClick={() => setShowShareModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={24} /></button>
+          
+          <h3 className="text-xl font-bold text-white mb-4 mt-2">Enlace de Credencial</h3>
+          
+          <div className="bg-white/10 p-4 rounded-xl mb-6 break-all border border-white/10 shadow-inner">
+            <p className="text-blue-400 text-sm font-medium">{url}</p>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Credencial Lista</h3>
-          <p className="text-gray-400 text-sm mb-6">Al escanear este código, la persona entrará a la vista pública segura.</p>
+          
+          <p className="text-gray-400 text-sm mb-6">Copia este enlace para compartir la credencial o generar tu código QR en otra plataforma.</p>
+          
           <button onClick={copiarEnlace} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
-            {copiedLink ? <><Check size={20}/> ¡Copiado!</> : 'Copiar Enlace Directo'}
+            {copiedLink ? <><Check size={20}/> ¡Copiado!</> : <><Link size={20}/> Copiar Enlace</>}
           </button>
         </div>
       </div>
@@ -434,7 +437,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#222222] flex flex-col items-center relative font-sans">
         <Analytics />
-        <ModalQR />
+        <ModalShare />
         <DocumentViewerModal />
         
         {!isPublicView && (
@@ -504,8 +507,8 @@ export default function App() {
 
           {!isPublicView && (
             <div className="mt-8 px-8 mb-4">
-              <button onClick={() => setShowQRModal(true)} className="w-full bg-white text-[#222222] font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition">
-                <QrCode size={20} /> Generar Código QR
+              <button onClick={() => setShowShareModal(true)} className="w-full bg-white text-[#222222] font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                <Link size={20} /> Obtener Enlace
               </button>
             </div>
           )}
@@ -639,7 +642,7 @@ export default function App() {
                 </div>
                 <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 flex justify-between items-center">
                   <button onClick={() => { setSelectedCred(cred); setCurrentView('detail'); window.scrollTo(0,0); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-1">
-                    Ver Credencial <QrCode size={14}/>
+                    Ver Credencial <Link size={14}/>
                   </button>
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleEditRecord(cred)} className="text-gray-400 hover:text-blue-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Editar"><Edit size={16} /></button>
