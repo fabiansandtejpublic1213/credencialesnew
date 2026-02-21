@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
 // IMPORTANTE: Cambia estas 2 líneas en tu VS Code quitando el "https://esm.sh/"
-import { createClient } from '@supabase/supabase-js';
-import { Analytics } from '@vercel/analytics/react';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js';
+import { Analytics } from 'https://esm.sh/@vercel/analytics/react';
 
+// --- CONFIGURACIÓN DE TU DOMINIO OFICIAL ---
+// Escribe aquí tu dominio final y limpio de Vercel (el de producción, sin letras raras)
+// Ejemplo: "https://databasecredenciales.vercel.app"
+const DOMINIO_PRODUCCION = ""; 
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const getEnvVar = (key) => {
@@ -60,8 +64,10 @@ export default function App() {
       return;
     }
 
+    // Leemos el ID ya sea del nuevo formato (#id) o del viejo (?id=)
+    const hashId = window.location.hash.replace('#', '');
     const params = new URLSearchParams(window.location.search);
-    const idEscaneado = params.get('id');
+    const idEscaneado = hashId || params.get('id');
 
     if (idEscaneado) {
       setIsPublicView(true);
@@ -296,7 +302,12 @@ export default function App() {
 
   const ModalShare = () => {
     if (!showShareModal || !selectedCred) return null;
-    const url = `${window.location.origin}/?id=${selectedCred.id}`;
+    
+    // AQUÍ ES DONDE SUCEDE LA MAGIA.
+    // Usará el dominio de producción que definas arriba. Si lo dejas vacío, usará el origin normal.
+    const baseUrl = DOMINIO_PRODUCCION || window.location.origin;
+    // Creamos el link con un hashtag limpio en lugar de ?id=
+    const url = `${baseUrl}/#${selectedCred.id}`;
 
     const copiarEnlace = () => {
       navigator.clipboard.writeText(url);
@@ -309,13 +320,13 @@ export default function App() {
         <div className="bg-[#2d2d2d] rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center relative border border-gray-700">
           <button onClick={() => setShowShareModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={24} /></button>
           
-          <h3 className="text-xl font-bold text-white mb-4 mt-2">Enlace de Credencial</h3>
+          <h3 className="text-xl font-bold text-white mb-4 mt-2">Enlace Público Oficial</h3>
           
           <div className="bg-white/10 p-4 rounded-xl mb-6 break-all border border-white/10 shadow-inner">
             <p className="text-blue-400 text-sm font-medium">{url}</p>
           </div>
           
-          <p className="text-gray-400 text-sm mb-6">Copia este enlace para compartir la credencial o generar tu código QR en otra plataforma.</p>
+          <p className="text-gray-400 text-sm mb-6">Este es el enlace fijo público. Al abrirlo no requerirá iniciar sesión en Vercel.</p>
           
           <button onClick={copiarEnlace} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
             {copiedLink ? <><Check size={20}/> ¡Copiado!</> : <><Link size={20}/> Copiar Enlace</>}
