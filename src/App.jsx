@@ -22,8 +22,11 @@ const ADMIN_USERNAME = "ADMINISTRADOR_Fab";
 const ADMIN_PASSWORD = "Fabian090912";
 
 export default function App() {
-  // TELÓN DE SEGURIDAD: Evita que se muestre nada antes de tiempo
+  // TELÓN DE SEGURIDAD INICIAL: Evita que se muestre nada antes de tiempo
   const [isInitializing, setIsInitializing] = useState(true);
+  
+  // NUEVA PANTALLA DE CARGA: Para transición al ver credencial
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
@@ -121,6 +124,20 @@ export default function App() {
     } catch (error) {
       console.error("Credencial no encontrada.");
     }
+  };
+
+  // NUEVA FUNCIÓN: Maneja el clic en "Ver Credencial" con pantalla de carga
+  const handleVerCredencial = (cred) => {
+    // 1. Activa la pantalla de carga (oculta la lista inmediatamente)
+    setIsTransitioning(true);
+    window.scrollTo(0,0);
+    
+    // 2. Espera 1.5 segundos para dar seguridad visual
+    setTimeout(() => {
+      setSelectedCred(cred);
+      setCurrentView('detail');
+      setIsTransitioning(false);
+    }, 1500);
   };
 
   const compressImage = (file) => {
@@ -470,6 +487,22 @@ export default function App() {
     );
   }
 
+  // --- VISTA 0.5: PANTALLA DE CARGA DE TRANSICIÓN (Para ocultar credenciales) ---
+  if (isTransitioning) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-center font-sans z-50">
+        <Shield className="text-blue-500 mb-6 animate-pulse" size={56} />
+        <h2 className="text-white text-xl font-bold mb-4 tracking-wider text-center px-4">PREPARANDO CREDENCIAL</h2>
+        <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 animate-[pulse_1.5s_ease-in-out_infinite] w-full origin-left"></div>
+        </div>
+        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mt-4 text-center">
+          Ocultando panel de administrador...
+        </p>
+      </div>
+    );
+  }
+
   // --- VISTA 1: CREDENCIAL INVÁLIDA (Link Roto/Falso) ---
   if (isPublicView && !selectedCred) {
     return (
@@ -763,9 +796,12 @@ export default function App() {
                   </div>
                 </div>
                 <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 flex justify-between items-center">
-                  <button onClick={() => { setSelectedCred(cred); setCurrentView('detail'); window.scrollTo(0,0); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-1">
+                  
+                  {/* BOTÓN ACTUALIZADO PARA ACTIVAR LA PANTALLA DE CARGA */}
+                  <button onClick={() => handleVerCredencial(cred)} className="text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-1">
                     Ver Credencial <Link size={14}/>
                   </button>
+
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleEditRecord(cred)} className="text-gray-400 hover:text-blue-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Editar"><Edit size={16} /></button>
                     <button onClick={() => { if(window.confirm('¿Eliminar registro para siempre?')) handleDelete(cred.id); }} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
