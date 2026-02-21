@@ -18,8 +18,8 @@ const supabase = supabaseUrl && supabaseAnonKey
   : null;
 
 // --- CREDENCIALES DE ADMINISTRADOR ---
-const ADMIN_USERNAME = "FABIADMINISTRADOR16";
-const ADMIN_PASSWORD = "Puchito090912";
+const ADMIN_USERNAME = "ADMINISTRADOR_Fab";
+const ADMIN_PASSWORD = "Fabian090912";
 
 export default function App() {
   // TELÓN DE SEGURIDAD: Evita que se muestre nada antes de tiempo
