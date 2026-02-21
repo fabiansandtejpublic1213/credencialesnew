@@ -1,0 +1,576 @@
+import React, { useState, useEffect } from 'react';
+import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, QrCode, X, Check, Lock, Key, Edit } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+import { QRCodeSVG } from 'qrcode.react';
+
+// --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Se inicializa solo si existen las variables
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
+
+// --- CREDENCIALES DE ADMINISTRADOR ---
+const ADMIN_USERNAME = "FABIADMIN16";
+const ADMIN_PASSWORD = "Data16FAB";
+
+export default function App() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState(false);
+
+  const [credentials, setCredentials] = useState([]);
+  const [currentView, setCurrentView] = useState('list'); 
+  const [selectedCred, setSelectedCred] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(''); 
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [isPublicView, setIsPublicView] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Agregamos 'id: null' para saber si estamos creando o editando
+  const [formData, setFormData] = useState({
+    id: null,
+    nombre: '', apellidos: '', empresa: '', puesto: '',
+    noSerie: '', tipo: '', modelo: '', color: '#1a1a1a', 
+    fotoPerfil: '', fotoModelo: '', documentos: [] 
+  });
+
+  useEffect(() => {
+    if (!supabase) {
+      setErrorMsg("Falta configurar Supabase. Verifica tu archivo .env");
+      setIsLoading(false);
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const idEscaneado = params.get('id');
+
+    if (idEscaneado) {
+      setIsPublicView(true);
+      cargarCredencialPorId(idEscaneado);
+    } else {
+      setIsPublicView(false);
+      cargarTodasLasCredenciales();
+    }
+  }, []);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (usernameInput === ADMIN_USERNAME && passwordInput === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      setLoginError(false);
+      setUsernameInput(''); 
+      setPasswordInput('');
+    } else {
+      setLoginError(true);
+      setPasswordInput(''); 
+    }
+  };
+
+  const cargarTodasLasCredenciales = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('credenciales')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCredentials(data || []);
+    } catch (error) {
+      console.error("Error cargando DB:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const cargarCredencialPorId = async (id) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('credenciales')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setSelectedCred(data);
+        setCurrentView('detail');
+      } else {
+        setErrorMsg("Credencial no encontrada en el sistema.");
+      }
+    } catch (error) {
+      setErrorMsg("Enlace inválido o credencial eliminada.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400; 
+          const scaleSize = Math.min(1, MAX_WIDTH / img.width);
+          canvas.width = img.width * scaleSize;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+        };
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const readFileAsBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleImageChange = async (e, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const base64Data = await compressImage(file);
+      setFormData(prev => ({ ...prev, [fieldName]: base64Data }));
+    } catch (error) {
+      setErrorMsg("Error al procesar la imagen.");
+    }
+  };
+
+  const handleDynamicFileChange = async (e, id) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMsg(`El archivo es muy pesado (máximo 2MB).`);
+      return;
+    }
+    try {
+      const base64Data = await readFileAsBase64(file);
+      const extension = file.name.split('.').pop(); 
+      setFormData(prev => ({
+        ...prev,
+        documentos: prev.documentos.map(doc => 
+          doc.id === id ? { ...doc, base64: base64Data, extension } : doc
+        )
+      }));
+    } catch (error) {
+      setErrorMsg("Error al leer el archivo.");
+    }
+  };
+
+  const addDocumentRow = () => {
+    if (formData.documentos.length >= 10) return;
+    setFormData(prev => ({
+      ...prev,
+      documentos: [...prev.documentos, { id: Date.now().toString(), nombre: '', base64: '', extension: '' }]
+    }));
+  };
+
+  const updateDocumentName = (id, newName) => {
+    setFormData(prev => ({
+      ...prev,
+      documentos: prev.documentos.map(doc => doc.id === id ? { ...doc, nombre: newName } : doc)
+    }));
+  };
+
+  const removeDocumentRow = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      documentos: prev.documentos.filter(doc => doc.id !== id)
+    }));
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // --- LÓGICA PARA NUEVO Y EDITAR ---
+  const handleNewRecord = () => {
+    setFormData({
+      id: null, // Aseguramos que sea null para crear uno nuevo
+      nombre: '', apellidos: '', empresa: '', puesto: '',
+      noSerie: '', tipo: '', modelo: '', color: '#1a1a1a', 
+      fotoPerfil: '', fotoModelo: '', documentos: [] 
+    });
+    setCurrentView('form');
+    window.scrollTo(0,0);
+  };
+
+  const handleEditRecord = (cred) => {
+    // Cargamos toda la data de esa credencial al formulario, incluyendo su ID
+    setFormData({ ...cred });
+    setCurrentView('form');
+    window.scrollTo(0,0);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!supabase) return;
+
+    if (formData.documentos.some(doc => !doc.nombre.trim())) {
+      setErrorMsg("Por favor, ponle un nombre a todos los documentos adjuntos.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (formData.id) {
+        // ACTUALIZAR REGISTRO EXISTENTE
+        const { error } = await supabase
+          .from('credenciales')
+          .update(formData)
+          .eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        // CREAR REGISTRO NUEVO
+        const { id, ...dataToInsert } = formData; // Quitamos el id null para que Supabase genere uno
+        const { error } = await supabase
+          .from('credenciales')
+          .insert([dataToInsert]);
+        if (error) throw error;
+      }
+      
+      // Limpiamos el formulario
+      setFormData({
+        id: null, nombre: '', apellidos: '', empresa: '', puesto: '',
+        noSerie: '', tipo: '', modelo: '', color: '#1a1a1a',
+        fotoPerfil: '', fotoModelo: '', documentos: []
+      });
+      setCurrentView('list');
+      cargarTodasLasCredenciales();
+    } catch (error) {
+      console.error(error);
+      setErrorMsg("Error al guardar en Supabase.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('credenciales').delete().eq('id', id);
+      if (error) throw error;
+      cargarTodasLasCredenciales();
+    } catch (error) {
+      setErrorMsg("No se pudo eliminar el registro.");
+    }
+  };
+
+  const ErrorModal = () => {
+    if (!errorMsg) return null;
+    return (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-gray-900 mb-2">Aviso</h3>
+          <p className="text-gray-600 mb-6 text-sm">{errorMsg}</p>
+          <button onClick={() => setErrorMsg('')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg">
+            Entendido
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const ModalQR = () => {
+    if (!showQRModal || !selectedCred) return null;
+    const qrUrl = `${window.location.origin}/?id=${selectedCred.id}`;
+
+    const copiarEnlace = () => {
+      navigator.clipboard.writeText(qrUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-[#2d2d2d] rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center relative border border-gray-700">
+          <button onClick={() => setShowQRModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={24} /></button>
+          <div className="bg-white p-4 rounded-xl inline-block mb-6 mt-4">
+            <QRCodeSVG value={qrUrl} size={200} level="H" includeMargin={false} />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Credencial Lista</h3>
+          <p className="text-gray-400 text-sm mb-6">Al escanear este código, la persona entrará a la vista pública segura.</p>
+          <button onClick={copiarEnlace} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+            {copiedLink ? <><Check size={20}/> ¡Copiado!</> : 'Copiar Enlace Directo'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // --- VISTA 0: LOGIN ---
+  if (!isPublicView && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          <div className="bg-[#222222] p-8 text-center border-b-4 border-blue-600">
+            <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <Shield size={32} className="text-blue-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-1">Acceso Restringido</h2>
+            <p className="text-gray-400 text-sm">Panel de Administración de Credenciales</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="p-8">
+            <div className="mb-5">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Usuario</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User size={18} className="text-gray-400" /></div>
+                <input type="text" value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-gray-50" placeholder="Ingresa tu usuario" autoFocus />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Contraseña</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Key size={18} className="text-gray-400" /></div>
+                <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-gray-50" placeholder="Ingresa tu contraseña" />
+              </div>
+              {loginError && <p className="text-red-500 text-sm mt-3 font-medium text-center bg-red-50 p-2 rounded-lg border border-red-100">Usuario o contraseña incorrectos.</p>}
+            </div>
+            
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+              <Lock size={18} /> Ingresar al Sistema
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISTA 1: CREDENCIAL PÚBLICA ---
+  if (currentView === 'detail' && selectedCred) {
+    const c = selectedCred;
+    const hasEquipo = c.noSerie || c.tipo || c.modelo || c.fotoModelo;
+
+    return (
+      <div className="min-h-screen bg-[#222222] flex flex-col items-center relative font-sans">
+        <ModalQR />
+        {!isPublicView && (
+          <div className="w-full bg-[#374151] p-3 flex justify-between items-center shadow-md">
+            <button onClick={() => setCurrentView('list')} className="text-white hover:bg-white/10 p-1.5 rounded-md transition"><ArrowLeft size={24} /></button>
+            <button className="text-white hover:bg-white/10 border border-white/20 p-1.5 rounded-md transition"><Menu size={24} /></button>
+          </div>
+        )}
+
+        <div className={`w-full max-w-md bg-[#2d2d2d] flex-grow flex flex-col pb-10 ${isPublicView ? 'pt-6' : ''}`}>
+          <div className="py-4 border-b border-gray-600 mb-6 mx-4"><h1 className="text-white text-center text-xl font-medium tracking-wide">DOCUMENTOS PROBATORIOS</h1></div>
+          <div className="flex justify-center mb-6">
+            {c.fotoPerfil ? <img src={c.fotoPerfil} alt="Perfil" className="w-32 h-32 rounded-[2rem] object-cover shadow-lg bg-white" /> : <div className="w-32 h-32 rounded-[2rem] bg-gray-600 flex items-center justify-center text-white"><User size={40}/></div>}
+          </div>
+          <div className="space-y-3 mb-4">
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Nombre</div><div className="text-left text-white text-sm">{c.nombre || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Apellidos</div><div className="text-left text-white text-sm">{c.apellidos || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Empresa</div><div className="text-left text-white text-sm">{c.empresa || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Puesto</div><div className="text-left text-white text-sm">{c.puesto || '-'}</div></div>
+          </div>
+          <div className="my-2 border-b border-gray-700/50 mx-4"></div>
+          <div className="mt-4 mb-2 px-4"><h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest text-center mb-4">Archivos Descargables</h3></div>
+          {c.documentos && c.documentos.length > 0 ? (
+            c.documentos.map((doc) => (
+              <div key={doc.id} className="grid grid-cols-[1fr_1fr] gap-4 items-center w-full mb-3 px-4">
+                <div className="text-right font-bold text-white text-sm leading-tight pr-2 break-words">{doc.nombre}</div>
+                <div className="flex justify-start">
+                  {doc.base64 ? <a href={doc.base64} download={`${doc.nombre}.${doc.extension || 'pdf'}`} className="bg-[#5b9bd5] hover:bg-[#4a89dc] text-white px-4 py-1.5 rounded-md flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">Descargar <FileText size={16} /></a> : <span className="text-gray-500 text-sm italic px-2 py-1.5">No subido</span>}
+                </div>
+              </div>
+            ))
+          ) : <div className="text-center text-gray-500 text-sm italic mb-4">No hay documentos adjuntos</div>}
+
+          {hasEquipo && (
+            <>
+              <div className="my-4 border-b border-gray-700/50 mx-4"></div>
+              <div className="mt-4 mb-4 px-4"><h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest text-center">Información de Equipo</h3></div>
+              <div className="space-y-3 mb-4">
+                {c.noSerie && <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">No Serie</div><div className="text-left text-white text-sm">{c.noSerie}</div></div>}
+                {c.tipo && <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Tipo</div><div className="text-left text-white text-sm pr-4">{c.tipo}</div></div>}
+                {c.modelo && <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Modelo</div><div className="text-left text-white text-sm">{c.modelo}</div></div>}
+              </div>
+              <div className="grid grid-cols-[1fr_1fr] gap-4 items-center w-full mb-3 mt-2 px-4">
+                <div className="text-right font-bold text-white text-sm mt-4">Foto Modelo</div>
+                <div className="flex justify-start">
+                  <div className="bg-white rounded-xl p-2 w-32 h-32 flex items-center justify-center shadow-inner mt-4 overflow-hidden">
+                    {c.fotoModelo ? <img src={c.fotoModelo} alt="Modelo" className="max-w-full max-h-full object-contain" /> : <span className="text-gray-400 text-xs">Sin imagen</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-[1fr_1fr] gap-4 items-center w-full mb-8 px-4 mt-6">
+                <div className="text-right font-bold text-white text-sm">Color Identificador</div>
+                <div className="flex justify-start">
+                  <div className="w-32 h-10 rounded-lg shadow-inner border border-gray-600" style={{ backgroundColor: c.color || '#1a1a1a' }}></div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!isPublicView && (
+            <div className="mt-8 px-8 mb-4">
+              <button onClick={() => setShowQRModal(true)} className="w-full bg-white text-[#222222] font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                <QrCode size={20} /> Generar Código QR
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Idoogroup. Todos los derechos reservados.</p></div>
+      </div>
+    );
+  }
+
+  // --- VISTA 2: FORMULARIO ---
+  if (currentView === 'form') {
+    return (
+      <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+        <ErrorModal />
+        <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden">
+          <div className="bg-blue-600 p-6 text-white flex items-center gap-4">
+            <button onClick={() => setCurrentView('list')} className="hover:bg-blue-700 p-2 rounded-full transition"><ArrowLeft size={24} /></button>
+            <h2 className="text-2xl font-bold">{formData.id ? 'Editar Credencial' : 'Agregar Nueva Credencial'}</h2>
+          </div>
+          <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
+            <section>
+              <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4 flex items-center gap-2"><User size={20} className="text-blue-600"/> Datos del Personal</h3>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Foto de Perfil</label>
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden relative">
+                  {formData.fotoPerfil ? <img src={formData.fotoPerfil} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon className="text-gray-400" />}
+                  <input type="file" accept="image/*" onChange={(e) => handleImageChange(e, 'fotoPerfil')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" name="nombre" required value={formData.nombre} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label><input type="text" name="apellidos" required value={formData.apellidos} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label><input type="text" name="empresa" required value={formData.empresa} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Puesto</label><input type="text" name="puesto" required value={formData.puesto} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+              </div>
+            </section>
+            <section>
+              <div className="flex items-center justify-between border-b pb-2 mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FileText size={20} className="text-blue-600"/> Documentos Probatorios</h3>
+                <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded">{formData.documentos.length} / 10</span>
+              </div>
+              <div className="space-y-4">
+                {formData.documentos.map((doc) => (
+                    <div key={doc.id} className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+                      <div className="flex-1 w-full"><input type="text" placeholder="Nombre (Ej. DC3, INE...)" value={doc.nombre} onChange={(e) => updateDocumentName(doc.id, e.target.value)} className="w-full border border-gray-300 rounded-md p-2 outline-none text-sm" /></div>
+                      <div className="flex-1 w-full relative">
+                          <input type="file" accept=".pdf, image/jpeg, image/png" onChange={(e) => handleDynamicFileChange(e, doc.id)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                          <div className={`w-full flex items-center gap-2 border rounded-md p-2 transition text-sm ${doc.base64 ? 'bg-green-50 border-green-400 text-green-700' : 'bg-white border-gray-300 text-gray-600'}`}>
+                            {doc.base64 ? <FileUp size={16}/> : <Upload size={16}/>}
+                            <span className="truncate flex-1">{doc.base64 ? '¡Cargado!' : 'Seleccionar Archivo'}</span>
+                          </div>
+                      </div>
+                      <button type="button" onClick={() => removeDocumentRow(doc.id)} className="p-2 text-gray-400 hover:text-red-600 transition"><Trash2 size={20} /></button>
+                    </div>
+                  ))}
+                {formData.documentos.length < 10 && (
+                  <button type="button" onClick={addDocumentRow} className="w-full py-3 border-2 border-dashed border-blue-300 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition flex justify-center gap-2"><Plus size={20} /> Agregar Documento</button>
+                )}
+              </div>
+            </section>
+            <section>
+              <div className="flex items-center justify-between border-b pb-2 mb-4"><h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Shield size={20} className="text-blue-600"/> Equipo <span className="text-sm font-normal text-gray-500 ml-1">(Opcional)</span></h3></div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Foto del Modelo</label>
+                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden relative">
+                  {formData.fotoModelo ? <img src={formData.fotoModelo} alt="Preview" className="w-full h-full object-contain p-1" /> : <ImageIcon className="text-gray-400" />}
+                  <input type="file" accept="image/*" onChange={(e) => handleImageChange(e, 'fotoModelo')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">No Serie</label><input type="text" name="noSerie" value={formData.noSerie} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                  <div className="flex gap-2">
+                    <input type="color" name="color" value={formData.color} onChange={handleInputChange} className="h-10 w-12 rounded cursor-pointer" />
+                    <input type="text" name="color" value={formData.color} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 outline-none uppercase" />
+                  </div>
+                </div>
+                <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label><input type="text" name="tipo" value={formData.tipo} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Modelo (Texto)</label><input type="text" name="modelo" value={formData.modelo} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+              </div>
+            </section>
+            <div className="pt-4 border-t flex justify-end gap-3">
+              <button type="button" onClick={() => setCurrentView('list')} className="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium transition" disabled={isSaving}>Cancelar</button>
+              <button type="submit" disabled={isSaving} className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-md transition flex items-center gap-2">{isSaving ? 'Guardando...' : (formData.id ? 'Actualizar Credencial' : 'Guardar Credencial')}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISTA 3: DASHBOARD ---
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
+      <ErrorModal />
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2"><Database className="text-blue-600" /> Sistema de Credenciales</h1>
+            <p className="text-gray-600 text-sm md:text-base mt-1">Gestor conectado a Supabase</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsAdmin(false)} className="text-sm text-gray-500 hover:text-gray-800 transition font-medium">Cerrar Sesión</button>
+            <button onClick={handleNewRecord} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-all font-bold"><Plus size={20} /> Nuevo Registro</button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-10 text-gray-500 animate-pulse font-medium">Conectando a base de datos segura...</div>
+        ) : credentials.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-200">
+            <Shield size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">Base de datos vacía</h3>
+            <p className="text-gray-500 mt-1">Presiona "Nuevo Registro" para agregar tu primera credencial.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {credentials.map(cred => (
+              <div key={cred.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-5 flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-100 flex-shrink-0 overflow-hidden">
+                    {cred.fotoPerfil ? <img src={cred.fotoPerfil} alt="Perfil" className="w-full h-full object-cover" /> : <User className="w-full h-full p-3 text-gray-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 truncate">{cred.nombre} {cred.apellidos}</h3>
+                    <p className="text-sm text-gray-500 truncate">{cred.puesto}</p>
+                    <p className="text-xs font-bold text-blue-800 bg-blue-100 inline-block px-2 py-1 rounded mt-1 truncate max-w-full">{cred.empresa}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 flex justify-between items-center">
+                  <button onClick={() => { setSelectedCred(cred); setCurrentView('detail'); window.scrollTo(0,0); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-1">
+                    Ver Credencial <QrCode size={14}/>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleEditRecord(cred)} className="text-gray-400 hover:text-blue-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Editar"><Edit size={16} /></button>
+                    <button onClick={() => { if(window.confirm('¿Eliminar registro para siempre?')) handleDelete(cred.id); }} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded shadow-sm border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
