@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, QrCode, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
-import { QRCodeSVG } from 'qrcode.react';
-import { Analytics } from '@vercel/analytics/react'; // <-- Analíticas de Vercel añadidas
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { QRCodeSVG } from 'https://esm.sh/qrcode.react@3';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -313,22 +313,72 @@ export default function App() {
     );
   };
 
-  // NUEVO: Modal visor de documentos
+  // Visor de documentos avanzado (Optimizado para Celulares)
   const DocumentViewerModal = () => {
+    const [blobUrl, setBlobUrl] = useState(null);
+
+    useEffect(() => {
+      if (!docToView) {
+        setBlobUrl(null);
+        return;
+      }
+
+      const isImage = docToView.base64.startsWith('data:image');
+
+      if (!isImage) {
+        // Truco para Celulares: Convertir Base64 a un archivo temporal (Blob)
+        try {
+          const arr = docToView.base64.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+
+          // Limpieza de memoria
+          return () => URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error("Error al optimizar PDF para celular:", error);
+          setBlobUrl(docToView.base64); // Plan B
+        }
+      } else {
+        setBlobUrl(docToView.base64);
+      }
+    }, [docToView]);
+
     if (!docToView) return null;
+    const isImage = docToView.base64.startsWith('data:image');
+
     return (
       <div className="fixed inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-        <div className="w-full max-w-4xl flex justify-between items-center mb-4">
-          <h3 className="text-white font-bold text-lg truncate pr-4">{docToView.nombre}</h3>
-          <button onClick={() => setDocToView(null)} className="text-white hover:text-red-400 bg-white/10 hover:bg-white/20 p-2 rounded-xl transition">
+        <div className="w-full max-w-4xl flex justify-between items-center mb-4 gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-white font-bold text-lg truncate">{docToView.nombre}</h3>
+            {!isImage && <p className="text-gray-400 text-[10px] sm:text-xs">Si la pantalla está blanca, pulsa el botón azul 👉</p>}
+          </div>
+          
+          {/* Botón de respaldo para celulares */}
+          {!isImage && (
+            <a href={blobUrl || docToView.base64} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md whitespace-nowrap flex items-center gap-2">
+              <FileText size={16} /> Abrir PDF
+            </a>
+          )}
+          
+          <button onClick={() => setDocToView(null)} className="text-white hover:text-red-400 bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex-shrink-0">
             <X size={24} />
           </button>
         </div>
-        <div className="w-full flex-grow max-h-[85vh] bg-white/5 rounded-2xl overflow-hidden flex items-center justify-center border border-white/10">
-          {docToView.base64.startsWith('data:image') ? (
+        
+        <div className="w-full flex-grow max-h-[85vh] bg-white/5 rounded-2xl overflow-hidden flex items-center justify-center border border-white/10 relative">
+          {isImage ? (
             <img src={docToView.base64} alt={docToView.nombre} className="max-w-full max-h-full object-contain" />
           ) : (
-            <iframe src={`${docToView.base64}#toolbar=0`} className="w-full h-full border-0 bg-white" title={docToView.nombre}></iframe>
+            <iframe src={blobUrl ? `${blobUrl}#toolbar=0` : ''} className="w-full h-full border-0 bg-white" title={docToView.nombre}></iframe>
           )}
         </div>
       </div>
@@ -339,7 +389,7 @@ export default function App() {
   if (!isPublicView && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-        <Analytics /> {/* Analíticas añadidas */}
+        <Analytics />
         <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden border border-gray-200">
           <div className="bg-[#222222] p-8 text-center border-b-4 border-blue-600">
             <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
@@ -383,7 +433,7 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-[#222222] flex flex-col items-center relative font-sans">
-        <Analytics /> {/* Analíticas añadidas */}
+        <Analytics />
         <ModalQR />
         <DocumentViewerModal />
         
@@ -460,7 +510,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Idoogroup. Todos los derechos reservados.</p></div>
+        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
       </div>
     );
   }
@@ -469,7 +519,7 @@ export default function App() {
   if (currentView === 'form') {
     return (
       <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-        <Analytics /> {/* Analíticas añadidas */}
+        <Analytics />
         <ErrorModal />
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden">
           <div className="bg-blue-600 p-6 text-white flex items-center gap-4">
@@ -551,7 +601,7 @@ export default function App() {
   // --- VISTA 3: DASHBOARD ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
-      <Analytics /> {/* Analíticas añadidas */}
+      <Analytics />
       <ErrorModal />
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
