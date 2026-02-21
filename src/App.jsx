@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Analytics } from 'https://esm.sh/@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -17,9 +17,6 @@ const ADMIN_USERNAME = "FABIADMIN16";
 const ADMIN_PASSWORD = "Puchito090912";
 
 export default function App() {
-  // Estado de inicialización (El "Telón" de seguridad)
-  const [isInitializing, setIsInitializing] = useState(true);
-
   const [isAdmin, setIsAdmin] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -28,7 +25,7 @@ export default function App() {
   const [credentials, setCredentials] = useState([]);
   const [currentView, setCurrentView] = useState('list'); 
   const [selectedCred, setSelectedCred] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(''); 
   const [isSaving, setIsSaving] = useState(false);
   
@@ -49,7 +46,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase) {
       setErrorMsg("Falta configurar Supabase. Verifica tu archivo .env");
-      setIsInitializing(false);
+      setIsLoading(false);
       return;
     }
 
@@ -58,12 +55,10 @@ export default function App() {
 
     if (idEscaneado) {
       setIsPublicView(true);
-      // Solo carga la credencial específica y luego levanta el telón
-      cargarCredencialPorId(idEscaneado).finally(() => setIsInitializing(false));
+      cargarCredencialPorId(idEscaneado);
     } else {
       setIsPublicView(false);
-      // No carga la base de datos completa aquí por seguridad. Se levanta el telón para el Login.
-      setIsInitializing(false);
+      cargarTodasLasCredenciales();
     }
   }, []);
 
@@ -74,8 +69,6 @@ export default function App() {
       setLoginError(false);
       setUsernameInput(''); 
       setPasswordInput('');
-      // Hasta este momento se cargan todas las credenciales
-      cargarTodasLasCredenciales();
     } else {
       setLoginError(true);
       setPasswordInput(''); 
@@ -100,6 +93,7 @@ export default function App() {
   };
 
   const cargarCredencialPorId = async (id) => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('credenciales')
@@ -111,10 +105,13 @@ export default function App() {
       if (data) {
         setSelectedCred(data);
         setCurrentView('detail');
+      } else {
+        setErrorMsg("Credencial no encontrada en el sistema.");
       }
     } catch (error) {
-      // Si falla, selectedCred quedará null y se mostrará pantalla de error
-      console.error("Credencial no encontrada.");
+      setErrorMsg("Enlace inválido o credencial eliminada.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -332,6 +329,7 @@ export default function App() {
       const isImage = docToView.base64.startsWith('data:image');
 
       if (!isImage) {
+        // Truco para Celulares: Convertir Base64 a un archivo temporal (Blob)
         try {
           const arr = docToView.base64.split(',');
           const mime = arr[0].match(/:(.*?);/)[1];
@@ -345,10 +343,11 @@ export default function App() {
           const url = URL.createObjectURL(blob);
           setBlobUrl(url);
 
+          // Limpieza de memoria
           return () => URL.revokeObjectURL(url);
         } catch (error) {
           console.error("Error al optimizar PDF para celular:", error);
-          setBlobUrl(docToView.base64); 
+          setBlobUrl(docToView.base64); // Plan B
         }
       } else {
         setBlobUrl(docToView.base64);
@@ -366,6 +365,7 @@ export default function App() {
             {!isImage && <p className="text-gray-400 text-[10px] sm:text-xs">Si la pantalla está blanca, pulsa el botón azul 👉</p>}
           </div>
           
+          {/* Botón de respaldo para celulares */}
           {!isImage && (
             <a href={blobUrl || docToView.base64} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md whitespace-nowrap flex items-center gap-2">
               <FileText size={16} /> Abrir PDF
@@ -388,40 +388,7 @@ export default function App() {
     );
   };
 
-
-  // ==========================================
-  // VISTAS PRINCIPALES DE LA APLICACIÓN
-  // ==========================================
-
-  // --- VISTA 0: TELÓN DE CARGA INICIAL ---
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-center font-sans">
-        <Shield className="text-blue-500 mb-6 animate-pulse" size={56} />
-        <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-500 animate-[pulse_1.5s_ease-in-out_infinite] w-full origin-left"></div>
-        </div>
-        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mt-4">Iniciando Sistema Segurizado</p>
-      </div>
-    );
-  }
-
-  // --- VISTA 1: CREDENCIAL INVÁLIDA (Link Roto) ---
-  if (isPublicView && !selectedCred) {
-    return (
-      <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
-        <Analytics />
-        <AlertCircle className="text-red-500 mb-6" size={64} />
-        <h2 className="text-white text-2xl font-bold mb-2">Credencial no encontrada</h2>
-        <p className="text-gray-400 text-sm max-w-sm mb-8 leading-relaxed">
-          El enlace que intentas abrir es inválido o la credencial ha sido dada de baja del sistema.
-        </p>
-        <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad Idoogroup</p>
-      </div>
-    );
-  }
-
-  // --- VISTA 2: LOGIN DE ADMINISTRADOR ---
+  // --- VISTA 0: LOGIN ---
   if (!isPublicView && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
@@ -462,7 +429,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 3: CREDENCIAL PÚBLICA (Exitosa) ---
+  // --- VISTA 1: CREDENCIAL PÚBLICA ---
   if (currentView === 'detail' && selectedCred) {
     const c = selectedCred;
     const hasEquipo = c.noSerie || c.tipo || c.modelo || c.fotoModelo;
@@ -551,7 +518,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 4: FORMULARIO DE EDICIÓN / CREACIÓN ---
+  // --- VISTA 2: FORMULARIO ---
   if (currentView === 'form') {
     return (
       <div className="min-h-screen bg-gray-100 p-4 md:p-8">
@@ -634,7 +601,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA 5: DASHBOARD DE ADMINISTRADOR (Principal) ---
+  // --- VISTA 3: DASHBOARD ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
       <Analytics />
