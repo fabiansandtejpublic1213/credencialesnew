@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye, Phone, Mail } from 'lucide-react';
 // IMPORTANTE: Cambia estas 2 líneas en tu VS Code quitando el "https://esm.sh/"
 import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
@@ -59,7 +59,7 @@ export default function App() {
       return;
     }
 
-    // NUEVA LÓGICA DE URL: Busca si la ruta es /credencialib/ID
+    // LÓGICA DE URL: Busca si la ruta es /credencialib/ID
     const path = window.location.pathname;
     let idEscaneado = null;
     
@@ -304,7 +304,6 @@ export default function App() {
     
     const baseUrl = DOMINIO_PRODUCCION || window.location.origin;
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    // NUEVO ENLACE: Parecerá una subpágina real
     const url = `${cleanBaseUrl}/credencialib/${selectedCred.id}`;
 
     const copiarEnlace = () => {
@@ -343,7 +342,7 @@ export default function App() {
     const handleEnviarSugerencia = () => {
       const subject = encodeURIComponent(`Sugerencia de Cambio - Credencial: ${selectedCred.nombre} ${selectedCred.apellidos}`);
       const body = encodeURIComponent(`Correo de contacto proporcionado: ${correo}\n\nSugerencia o cambios solicitados:\n${sugerencia}`);
-      window.location.href = `mailto:fabiansandtejpublic12@outlook.com?subject=${subject}&body=${body}`;
+      window.location.href = `mailto:creddbcdfst21@outlook.com?subject=${subject}&body=${body}`;
       
       setShowSuggestionModal(false);
       setSugerencia('');
@@ -552,7 +551,7 @@ export default function App() {
           </div>
         )}
 
-        <div className={`w-full max-w-md bg-[#2d2d2d] flex-grow flex flex-col pb-10 ${isPublicView ? 'pt-6' : ''}`}>
+        <div className={`w-full max-w-md bg-[#2d2d2d] flex-grow flex flex-col pb-6 ${isPublicView ? 'pt-6' : ''}`}>
           <div className="py-4 border-b border-gray-600 mb-6 mx-4"><h1 className="text-white text-center text-xl font-medium tracking-wide">DOCUMENTOS PROBATORIOS</h1></div>
           <div className="flex justify-center mb-6">
             {c.fotoPerfil ? <img src={c.fotoPerfil} alt="Perfil" className="w-32 h-32 rounded-[2rem] object-cover shadow-lg bg-white" /> : <div className="w-32 h-32 rounded-[2rem] bg-gray-600 flex items-center justify-center text-white"><User size={40}/></div>}
@@ -619,9 +618,9 @@ export default function App() {
             </div>
           )}
 
-          {/* VISTA PÚBLICA (LO QUE SE VE POR FUERA): Sugerencias y Feedback */}
+          {/* VISTA PÚBLICA (LO QUE SE VE POR FUERA): Sugerencias, Feedback y AVISO DE PRIVACIDAD */}
           {isPublicView && (
-            <div className="mt-8 px-6 mb-4 space-y-3">
+            <div className="mt-6 px-6 space-y-3 flex flex-col flex-grow">
               <div className="my-6 border-b border-gray-700/50 mx-2"></div>
               
               {/* Botón de Sugerencias */}
@@ -640,6 +639,32 @@ export default function App() {
                 <AlertCircle size={14} /> Reportar un problema o bug de la página
               </a>
 
+              {/* Espaciador para empujar el aviso de privacidad hasta abajo si hay espacio */}
+              <div className="flex-grow"></div>
+
+              {/* AVISO DE PRIVACIDAD Y DERECHOS ARCO */}
+              <div className="mt-8 mb-2">
+                <div className="bg-[#1f1f1f] p-4 rounded-xl border border-gray-700/50 text-center shadow-inner">
+                  <Shield className="w-4 h-4 text-gray-500 mx-auto mb-2 opacity-70" />
+                  <h4 className="text-gray-300 text-[10px] font-bold uppercase tracking-wider mb-2">Aviso de Privacidad y Derechos ARCO</h4>
+                  <p className="text-gray-500 text-[10px] leading-relaxed mb-4 text-justify">
+                    Los datos personales mostrados en esta credencial digital se encuentran protegidos. El titular de los mismos tiene pleno derecho a <strong>Acceder, Rectificar, Cancelar u Oponerse</strong> (ARCO) al tratamiento de su información en cualquier momento.
+                  </p>
+                  
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <p className="text-gray-400 text-[10px] font-medium mb-2">Para solicitudes legales o aclaraciones contacte a la empresa:</p>
+                    <div className="flex flex-col gap-2 items-center">
+                      <a href="tel:+522204716491" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
+                        <Phone size={12} /> +52 220 471 6491
+                      </a>
+                      <a href="mailto:creddbcdfst21@outlook.com" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
+                        <Mail size={12} /> creddbcdfst21@outlook.com
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Botón para regresar al panel si el admin solo estaba "probando" la vista pública */}
               {isAdmin && (
                 <button 
@@ -648,7 +673,7 @@ export default function App() {
                     setCurrentView('list');
                     window.history.pushState({}, '', '/');
                   }} 
-                  className="w-full mt-6 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-medium py-3 px-4 rounded-xl border border-red-500/20 flex items-center justify-center gap-2 transition text-sm shadow-md"
+                  className="w-full mt-4 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-medium py-3 px-4 rounded-xl border border-red-500/20 flex items-center justify-center gap-2 transition text-sm shadow-md"
                 >
                   <ArrowLeft size={18} /> Volver a mi panel de Administrador
                 </button>
@@ -657,7 +682,7 @@ export default function App() {
           )}
 
         </div>
-        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-xs opacity-90">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
+        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-[10px] opacity-70">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
       </div>
     );
   }
@@ -791,7 +816,7 @@ export default function App() {
                   {/* BOTÓN MAGICO: Abre la vista pública sin salir de la página ni pedir login de Vercel */}
                   <button onClick={() => { 
                     setSelectedCred(cred); 
-                    setIsPublicView(true); // Cambia directamente a la vista con botones de feedback
+                    setIsPublicView(true); 
                     setCurrentView('detail'); 
                     window.history.pushState({}, '', `/credencialib/${cred.id}`);
                     window.scrollTo(0,0); 
