@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye } from 'lucide-react';
 // IMPORTANTE: Cambia estas 2 líneas en tu VS Code quitando el "https://esm.sh/"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-import { Analytics } from 'https://esm.sh/@vercel/analytics/react';
+import { createClient } from '@supabase/supabase-js';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- CONFIGURACIÓN DE TU DOMINIO OFICIAL ---
 // Escribe aquí tu dominio final y limpio de Vercel (el de producción, sin letras raras)
 // Ejemplo: "https://databasecredenciales.vercel.app"
-const DOMINIO_PRODUCCION = ""; 
+const DOMINIO_PRODUCCION = "https://databasecredenciales-himfpg0ek.vercel.app"; 
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const getEnvVar = (key) => {
