@@ -263,8 +263,8 @@ export default function App() {
     try {
       const dataToSave = { ...formData };
 
-      // Si es un registro NUEVO, le generamos su ID de 10 dígitos
-      if (!dataToSave.id) {
+      // CORRECCIÓN: Si el registro (nuevo O viejo) NO tiene id_visual, se lo generamos aquí.
+      if (!dataToSave.id_visual) {
         dataToSave.id_visual = generateIdVisual();
       }
 
@@ -587,7 +587,7 @@ export default function App() {
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Puesto</div><div className="text-left text-white text-sm">{c.puesto || '-'}</div></div>
             
             {/* AQUÍ SE MUESTRA EL ID VISUAL GENERADO AUTOMÁTICAMENTE */}
-            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm opacity-60">iD</div><div className="text-left text-white text-sm font-mono opacity-60">{c.id_visual || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm opacity-60">iD</div><div className="text-left text-white text-sm font-mono opacity-60">{c.id_visual || 'No asignado'}</div></div>
           </div>
           
           <div className="my-2 border-b border-gray-700/50 mx-4"></div>
@@ -660,7 +660,7 @@ export default function App() {
               
               {/* Botón de Feedback (Bugs) */}
               <a 
-                href="mailto:fabiansandtejpublic12@outlook.com?subject=Reporte%20de%20Bug%20o%20Problema%20-%20Sistema%20de%20Credenciales" 
+                href="mailto:creddbcdfst21@outlook.com?subject=Reporte%20de%20Bug%20o%20Problema%20-%20Sistema%20de%20Credenciales" 
                 className="w-full text-gray-500 hover:text-gray-300 font-medium py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition text-xs"
               >
                 <AlertCircle size={14} /> Reportar un problema o bug de la página
@@ -840,12 +840,18 @@ export default function App() {
                     <p className="text-sm text-gray-500 truncate">{cred.puesto}</p>
                     <p className="text-xs font-bold text-blue-800 bg-blue-100 inline-block px-2 py-1 rounded mt-1 truncate max-w-full">{cred.empresa}</p>
                     
-                    {/* ID VISUAL EN EL PANEL ADMIN */}
-                    {cred.id_visual && (
-                      <p className="text-[10px] text-gray-400 font-mono mt-2 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded inline-block">
-                        iD: {cred.id_visual}
-                      </p>
-                    )}
+                    {/* ID VISUAL EN EL PANEL ADMIN (CON SOLUCIÓN PARA CREDENCIALES VIEJAS) */}
+                    <div className="mt-2">
+                      {cred.id_visual ? (
+                        <span className="text-[10px] text-gray-500 font-mono bg-gray-100 border border-gray-200 px-2 py-1 rounded inline-block">
+                          iD: {cred.id_visual}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-amber-600 font-mono bg-amber-50 border border-amber-200 px-2 py-1 rounded inline-block" title="Abre y guarda esta credencial para generarle un ID visual">
+                          iD: Sin generar (Edita y guarda)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
