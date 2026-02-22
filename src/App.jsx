@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
 
 // --- CONFIGURACIÓN DE TU DOMINIO OFICIAL ---
-const DOMINIO_PRODUCCION = "https://databasecredencials-private.vercel.app"; 
+const DOMINIO_PRODUCCION = "https://avalusid-database-private.vercel.app"; 
 
 // --- CONEXIÓN A SUPABASE ---
 const getEnvVar = (key) => {
