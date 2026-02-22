@@ -5,10 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
 
 // --- CONFIGURACIÓN DE TU DOMINIO OFICIAL ---
-// Escribe aquí tu dominio final y limpio de Vercel (el de producción)
 const DOMINIO_PRODUCCION = "https://databasecredencials-private.vercel.app"; 
 
-// --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
+// --- CONEXIÓN A SUPABASE ---
 const getEnvVar = (key) => {
   try { return import.meta.env[key]; } catch (e) { return null; }
 };
@@ -41,14 +40,16 @@ export default function App() {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   
   const [isPublicView, setIsPublicView] = useState(false);
-  const [isFetchingCred, setIsFetchingCred] = useState(false); // Estado para saber si está descargando la credencial
+  const [isFetchingCred, setIsFetchingCred] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   
   const [docToView, setDocToView] = useState(null);
 
+  // NUEVOS DATOS AÑADIDOS AL ESTADO
   const [formData, setFormData] = useState({
     id: null,
-    nombre: '', apellidos: '', empresa: '', puesto: '',
+    id_visual: '', // ID de 10 dígitos aleatorio
+    nombre: '', apellidos: '', curp: '', fecha_nacimiento: '', empresa: '', puesto: '',
     noSerie: '', tipo: '', modelo: '', color: '#1a1a1a', 
     fotoPerfil: '', fotoModelo: '', documentos: [] 
   });
@@ -59,14 +60,12 @@ export default function App() {
       return;
     }
 
-    // LÓGICA DE URL: Busca si la ruta es /credencialib/ID
     const path = window.location.pathname;
     let idEscaneado = null;
     
     if (path.startsWith('/credencialib/')) {
       idEscaneado = path.split('/credencialib/')[1];
     } else {
-      // Fallback por si usas el método viejo de ?id=
       const params = new URLSearchParams(window.location.search);
       idEscaneado = params.get('id');
     }
@@ -221,8 +220,8 @@ export default function App() {
 
   const handleNewRecord = () => {
     setFormData({
-      id: null, 
-      nombre: '', apellidos: '', empresa: '', puesto: '',
+      id: null, id_visual: '',
+      nombre: '', apellidos: '', curp: '', fecha_nacimiento: '', empresa: '', puesto: '',
       noSerie: '', tipo: '', modelo: '', color: '#1a1a1a', 
       fotoPerfil: '', fotoModelo: '', documentos: [] 
     });
@@ -236,6 +235,21 @@ export default function App() {
     window.scrollTo(0,0);
   };
 
+  // Función para generar un número aleatorio de 10 dígitos como string
+  const generateIdVisual = () => {
+    return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+  };
+
+  // Función auxiliar para convertir "YYYY-MM-DD" a "DD/MM/YYYY"
+  const formatDateToDMY = (dateString) => {
+    if (!dateString) return '-';
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateString;
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!supabase) return;
@@ -247,17 +261,24 @@ export default function App() {
 
     setIsSaving(true);
     try {
-      if (formData.id) {
-        const { error } = await supabase.from('credenciales').update(formData).eq('id', formData.id);
+      const dataToSave = { ...formData };
+
+      // Si es un registro NUEVO, le generamos su ID de 10 dígitos
+      if (!dataToSave.id) {
+        dataToSave.id_visual = generateIdVisual();
+      }
+
+      if (dataToSave.id) {
+        const { error } = await supabase.from('credenciales').update(dataToSave).eq('id', dataToSave.id);
         if (error) throw error;
       } else {
-        const { id, ...dataToInsert } = formData; 
+        const { id, ...dataToInsert } = dataToSave; 
         const { error } = await supabase.from('credenciales').insert([dataToInsert]);
         if (error) throw error;
       }
       
       setFormData({
-        id: null, nombre: '', apellidos: '', empresa: '', puesto: '',
+        id: null, id_visual: '', nombre: '', apellidos: '', curp: '', fecha_nacimiento: '', empresa: '', puesto: '',
         noSerie: '', tipo: '', modelo: '', color: '#1a1a1a',
         fotoPerfil: '', fotoModelo: '', documentos: []
       });
@@ -342,7 +363,7 @@ export default function App() {
     const handleEnviarSugerencia = () => {
       const subject = encodeURIComponent(`Sugerencia de Cambio - Credencial: ${selectedCred.nombre} ${selectedCred.apellidos}`);
       const body = encodeURIComponent(`Correo de contacto proporcionado: ${correo}\n\nSugerencia o cambios solicitados:\n${sugerencia}`);
-      window.location.href = `mailto:creddbcdfst21@outlook.com?subject=${subject}&body=${body}`;
+      window.location.href = `mailto:fabiansandtejpublic12@outlook.com?subject=${subject}&body=${body}`;
       
       setShowSuggestionModal(false);
       setSugerencia('');
@@ -556,11 +577,17 @@ export default function App() {
           <div className="flex justify-center mb-6">
             {c.fotoPerfil ? <img src={c.fotoPerfil} alt="Perfil" className="w-32 h-32 rounded-[2rem] object-cover shadow-lg bg-white" /> : <div className="w-32 h-32 rounded-[2rem] bg-gray-600 flex items-center justify-center text-white"><User size={40}/></div>}
           </div>
+          
           <div className="space-y-3 mb-4">
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Nombre</div><div className="text-left text-white text-sm">{c.nombre || '-'}</div></div>
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Apellidos</div><div className="text-left text-white text-sm">{c.apellidos || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">CURP</div><div className="text-left text-white text-sm uppercase">{c.curp || '-'}</div></div>
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">F. Nacimiento</div><div className="text-left text-white text-sm">{formatDateToDMY(c.fecha_nacimiento)}</div></div>
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Empresa</div><div className="text-left text-white text-sm">{c.empresa || '-'}</div></div>
             <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm">Puesto</div><div className="text-left text-white text-sm">{c.puesto || '-'}</div></div>
+            
+            {/* AQUÍ SE MUESTRA EL ID VISUAL GENERADO AUTOMÁTICAMENTE */}
+            <div className="grid grid-cols-[1fr_1fr] gap-4 w-full px-4"><div className="text-right font-bold text-white text-sm opacity-60">iD</div><div className="text-left text-white text-sm font-mono opacity-60">{c.id_visual || '-'}</div></div>
           </div>
           
           <div className="my-2 border-b border-gray-700/50 mx-4"></div>
@@ -654,8 +681,8 @@ export default function App() {
                   <div className="border-t border-gray-700/50 pt-3">
                     <p className="text-gray-400 text-[10px] font-medium mb-2">Para solicitudes legales o aclaraciones contacte a la empresa:</p>
                     <div className="flex flex-col gap-2 items-center">
-                      <a href="tel:+522204716491" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
-                        <Phone size={12} /> +52 220 471 6491
+                      <a href="tel:+522204716091" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
+                        <Phone size={12} /> +52 220 471 6091
                       </a>
                       <a href="mailto:creddbcdfst21@outlook.com" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
                         <Mail size={12} /> creddbcdfst21@outlook.com
@@ -711,6 +738,11 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" name="nombre" required value={formData.nombre} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label><input type="text" name="apellidos" required value={formData.apellidos} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                
+                {/* NUEVOS CAMPOS: CURP Y FECHA DE NACIMIENTO */}
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">CURP</label><input type="text" name="curp" value={formData.curp} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none uppercase" placeholder="18 Caracteres" maxLength={18} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label><input type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label><input type="text" name="empresa" required value={formData.empresa} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Puesto</label><input type="text" name="puesto" required value={formData.puesto} onChange={handleInputChange} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
               </div>
@@ -798,8 +830,8 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {credentials.map(cred => (
-              <div key={cred.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                <div className="p-5 flex items-start gap-4">
+              <div key={cred.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                <div className="p-5 flex items-start gap-4 flex-grow">
                   <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-100 flex-shrink-0 overflow-hidden">
                     {cred.fotoPerfil ? <img src={cred.fotoPerfil} alt="Perfil" className="w-full h-full object-cover" /> : <User className="w-full h-full p-3 text-gray-400" />}
                   </div>
@@ -807,13 +839,18 @@ export default function App() {
                     <h3 className="font-bold text-gray-900 truncate">{cred.nombre} {cred.apellidos}</h3>
                     <p className="text-sm text-gray-500 truncate">{cred.puesto}</p>
                     <p className="text-xs font-bold text-blue-800 bg-blue-100 inline-block px-2 py-1 rounded mt-1 truncate max-w-full">{cred.empresa}</p>
+                    
+                    {/* ID VISUAL EN EL PANEL ADMIN */}
+                    {cred.id_visual && (
+                      <p className="text-[10px] text-gray-400 font-mono mt-2 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded inline-block">
+                        iD: {cred.id_visual}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
                 {/* BOTONES ACTUALIZADOS EN EL DASHBOARD */}
                 <div className="bg-gray-50 px-4 py-3 border-t border-gray-100 flex justify-between items-center gap-2">
-                  
-                  {/* BOTÓN MAGICO: Abre la vista pública sin salir de la página ni pedir login de Vercel */}
                   <button onClick={() => { 
                     setSelectedCred(cred); 
                     setIsPublicView(true); 
@@ -821,13 +858,13 @@ export default function App() {
                     window.history.pushState({}, '', `/credencialib/${cred.id}`);
                     window.scrollTo(0,0); 
                   }} className="flex-1 text-sm font-bold text-white hover:bg-blue-700 bg-blue-600 px-3 py-2 rounded-md flex items-center justify-center gap-1 shadow-sm transition" title="Ver cómo se ve en modo público">
-                    <Eye size={14}/> Ver como Público
+                    <Eye size={14}/> Ver Público
                   </button>
 
                   <div className="flex items-center gap-1">
                     <button onClick={() => { 
                       setSelectedCred(cred); 
-                      setIsPublicView(false); // Vista interna (te da el botón de Obtener Enlace)
+                      setIsPublicView(false); 
                       setCurrentView('detail'); 
                       window.scrollTo(0,0); 
                     }} className="text-gray-500 hover:text-blue-600 bg-white p-2 rounded shadow-sm border border-gray-200" title="Ver Internamente"><Lock size={16} /></button>
