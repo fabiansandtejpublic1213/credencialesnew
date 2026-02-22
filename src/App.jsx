@@ -5,9 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
 
 // --- CONFIGURACIÓN DE TU DOMINIO OFICIAL ---
-// Escribe aquí tu dominio final y limpio de Vercel (el de producción, sin letras raras)
-// Ejemplo: "https://databasecredenciales.vercel.app"
-const DOMINIO_PRODUCCION = "https://databasecredenciales-himfpg0ek.vercel.app"; 
+// Escribe aquí tu dominio final y limpio de Vercel (el de producción)
+const DOMINIO_PRODUCCION = "https://databasecredencials-private.vercel.app"; 
 
 // --- CONEXIÓN A SUPABASE (Lee tu archivo .env) ---
 const getEnvVar = (key) => {
@@ -17,7 +16,6 @@ const getEnvVar = (key) => {
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
-// Se inicializa solo si existen las variables
 const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
@@ -27,9 +25,6 @@ const ADMIN_USERNAME = "ADMINISTRADOR_Fab";
 const ADMIN_PASSWORD = "Fabian090912";
 
 export default function App() {
-  // TELÓN DE SEGURIDAD: Evita que se muestre nada antes de tiempo
-  const [isInitializing, setIsInitializing] = useState(true);
-
   const [isAdmin, setIsAdmin] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -44,10 +39,11 @@ export default function App() {
   
   const [showShareModal, setShowShareModal] = useState(false);
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  
   const [isPublicView, setIsPublicView] = useState(false);
+  const [isFetchingCred, setIsFetchingCred] = useState(false); // Estado para saber si está descargando la credencial
   const [copiedLink, setCopiedLink] = useState(false);
   
-  // Estado para el visor de documentos internos
   const [docToView, setDocToView] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -60,23 +56,27 @@ export default function App() {
   useEffect(() => {
     if (!supabase) {
       setErrorMsg("Falta configurar Supabase. Verifica tu archivo .env");
-      setIsInitializing(false);
       return;
     }
 
-    // Leemos el ID ya sea del nuevo formato (#id) o del viejo (?id=)
-    const hashId = window.location.hash.replace('#', '');
-    const params = new URLSearchParams(window.location.search);
-    const idEscaneado = hashId || params.get('id');
+    // NUEVA LÓGICA DE URL: Busca si la ruta es /credencialib/ID
+    const path = window.location.pathname;
+    let idEscaneado = null;
+    
+    if (path.startsWith('/credencialib/')) {
+      idEscaneado = path.split('/credencialib/')[1];
+    } else {
+      // Fallback por si usas el método viejo de ?id=
+      const params = new URLSearchParams(window.location.search);
+      idEscaneado = params.get('id');
+    }
 
     if (idEscaneado) {
       setIsPublicView(true);
-      // Solo carga ESA credencial en específico y quita el telón
-      cargarCredencialPorId(idEscaneado).finally(() => setIsInitializing(false));
+      setIsFetchingCred(true);
+      cargarCredencialPorId(idEscaneado).finally(() => setIsFetchingCred(false));
     } else {
       setIsPublicView(false);
-      // NO carga la base de datos aquí por seguridad. Solo quita el telón para mostrar el Login.
-      setIsInitializing(false);
     }
   }, []);
 
@@ -87,7 +87,6 @@ export default function App() {
       setLoginError(false);
       setUsernameInput(''); 
       setPasswordInput('');
-      // LA BASE DE DATOS SOLO SE DESCARGA SI LA CONTRASEÑA ES CORRECTA
       cargarTodasLasCredenciales();
     } else {
       setLoginError(true);
@@ -303,11 +302,10 @@ export default function App() {
   const ModalShare = () => {
     if (!showShareModal || !selectedCred) return null;
     
-    // AQUÍ ES DONDE SUCEDE LA MAGIA.
-    // Usará el dominio de producción que definas arriba. Si lo dejas vacío, usará el origin normal.
     const baseUrl = DOMINIO_PRODUCCION || window.location.origin;
-    // Creamos el link con un hashtag limpio en lugar de ?id=
-    const url = `${baseUrl}/#${selectedCred.id}`;
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    // NUEVO ENLACE: Parecerá una subpágina real
+    const url = `${cleanBaseUrl}/credencialib/${selectedCred.id}`;
 
     const copiarEnlace = () => {
       navigator.clipboard.writeText(url);
@@ -326,7 +324,7 @@ export default function App() {
             <p className="text-blue-400 text-sm font-medium">{url}</p>
           </div>
           
-          <p className="text-gray-400 text-sm mb-6">Este es el enlace fijo público. Al abrirlo no requerirá iniciar sesión en Vercel.</p>
+          <p className="text-gray-400 text-sm mb-6">Este es el enlace de la sub-página pública.</p>
           
           <button onClick={copiarEnlace} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
             {copiedLink ? <><Check size={20}/> ¡Copiado!</> : <><Link size={20}/> Copiar Enlace</>}
@@ -395,7 +393,6 @@ export default function App() {
     );
   };
 
-  // Visor de documentos avanzado (Optimizado para Celulares)
   const DocumentViewerModal = () => {
     const [blobUrl, setBlobUrl] = useState(null);
 
@@ -464,37 +461,34 @@ export default function App() {
     );
   };
 
-
   // ==========================================
   // VISTAS PRINCIPALES DE LA APLICACIÓN
   // ==========================================
 
-  // --- VISTA 0: TELÓN DE CARGA INICIAL (Seguridad) ---
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-center font-sans">
-        <Shield className="text-blue-500 mb-6 animate-pulse" size={56} />
-        <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-500 animate-[pulse_1.5s_ease-in-out_infinite] w-full origin-left"></div>
+  // --- VISTA 1: CREDENCIAL INVÁLIDA O CARGANDO PÚBLICA ---
+  if (isPublicView) {
+    if (isFetchingCred) {
+      return (
+        <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="text-white font-medium">Cargando credencial...</p>
         </div>
-        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mt-4">Iniciando Sistema Seguro</p>
-      </div>
-    );
-  }
-
-  // --- VISTA 1: CREDENCIAL INVÁLIDA (Link Roto/Falso) ---
-  if (isPublicView && !selectedCred) {
-    return (
-      <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
-        <Analytics />
-        <AlertCircle className="text-red-500 mb-6" size={64} />
-        <h2 className="text-white text-2xl font-bold mb-2">Credencial no encontrada</h2>
-        <p className="text-gray-400 text-sm max-w-sm mb-8 leading-relaxed">
-          El enlace que intentas abrir es inválido o la credencial ha sido dada de baja del sistema.
-        </p>
-        <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad Idoogroup</p>
-      </div>
-    );
+      );
+    }
+    
+    if (!selectedCred) {
+      return (
+        <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
+          <Analytics />
+          <AlertCircle className="text-red-500 mb-6" size={64} />
+          <h2 className="text-white text-2xl font-bold mb-2">Credencial no encontrada</h2>
+          <p className="text-gray-400 text-sm max-w-sm mb-8 leading-relaxed">
+            El enlace que intentas abrir es inválido o la credencial ha sido dada de baja del sistema.
+          </p>
+          <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad Idoogroup</p>
+        </div>
+      );
+    }
   }
 
   // --- VISTA 2: LOGIN DE ADMINISTRADOR ---
@@ -652,6 +646,7 @@ export default function App() {
                   onClick={() => {
                     setIsPublicView(false);
                     setCurrentView('list');
+                    window.history.pushState({}, '', '/');
                   }} 
                   className="w-full mt-6 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-medium py-3 px-4 rounded-xl border border-red-500/20 flex items-center justify-center gap-2 transition text-sm shadow-md"
                 >
@@ -798,6 +793,7 @@ export default function App() {
                     setSelectedCred(cred); 
                     setIsPublicView(true); // Cambia directamente a la vista con botones de feedback
                     setCurrentView('detail'); 
+                    window.history.pushState({}, '', `/credencialib/${cred.id}`);
                     window.scrollTo(0,0); 
                   }} className="flex-1 text-sm font-bold text-white hover:bg-blue-700 bg-blue-600 px-3 py-2 rounded-md flex items-center justify-center gap-1 shadow-sm transition" title="Ver cómo se ve en modo público">
                     <Eye size={14}/> Ver como Público
