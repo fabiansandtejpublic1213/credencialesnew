@@ -344,7 +344,7 @@ export default function App() {
             <p className="text-blue-400 text-sm font-medium">{url}</p>
           </div>
           
-          <p className="text-gray-400 text-sm mb-6">Este es el enlace de la sub-página pública.</p>
+          <p className="text-gray-400 text-sm mb-6">Este es el enlace de la IVCD publica</p>
           
           <button onClick={copiarEnlace} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
             {copiedLink ? <><Check size={20}/> ¡Copiado!</> : <><Link size={20}/> Copiar Enlace</>}
@@ -380,7 +380,7 @@ export default function App() {
           </h3>
           
           <p className="text-gray-400 text-[11px] mb-5 leading-relaxed bg-white/5 p-3 rounded-lg border border-white/5">
-            Lo verificaremos y haremos los cambios en un máximo de <strong>3 días hábiles</strong> o en caso de que surja algo más como querer agregar un nuevo documento se le contactará igual en 3 días máximo.
+            Lo verificaremos y haremos los cambios en un máximo de <strong>3 días hábiles</strong> o en caso de que surja algo más como querer agregar un nuevo documento se le contactará igual en 3 días máximo, tomando en cuenta que estos cambios son solo referentes a documentos o información de tu IVCD mas no del diseño de esta.
           </p>
           
           <label className="block text-gray-300 text-xs font-bold mb-1">Correo para contactarte:</label>
@@ -392,7 +392,7 @@ export default function App() {
             className="w-full mb-4 p-3 bg-[#1a1a1a] border border-gray-600 rounded-xl text-white text-sm outline-none focus:border-blue-500 transition" 
           />
           
-          <label className="block text-gray-300 text-xs font-bold mb-1">¿Qué cambios sugieres?</label>
+          <label className="block text-gray-300 text-xs font-bold mb-1">¿Qué cambios requieres?</label>
           <textarea 
             placeholder="Describe los cambios o documentos a agregar..." 
             value={sugerencia} 
@@ -501,11 +501,11 @@ export default function App() {
         <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
           <Analytics />
           <AlertCircle className="text-red-500 mb-6" size={64} />
-          <h2 className="text-white text-2xl font-bold mb-2">Credencial no encontrada</h2>
+          <h2 className="text-white text-2xl font-bold mb-2">IVCD no encontrada</h2>
           <p className="text-gray-400 text-sm max-w-sm mb-8 leading-relaxed">
-            El enlace que intentas abrir es inválido o la credencial ha sido dada de baja del sistema.
+            El enlace que intentas abrir es inválido o la IVCD ha sido dada de baja del sistema.
           </p>
-          <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad Idoogroup</p>
+          <p className="text-white/20 text-[10px] uppercase tracking-widest font-bold">Seguridad AvalusID</p>
         </div>
       );
     }
@@ -655,7 +655,7 @@ export default function App() {
                 onClick={() => setShowSuggestionModal(true)} 
                 className="w-full bg-[#374151] hover:bg-[#4b5563] text-white font-medium py-3 px-4 rounded-xl border border-gray-600 flex items-center justify-center gap-2 transition text-sm shadow-md"
               >
-                <Edit size={18} /> Solicitar cambios en credencial
+                <Edit size={18} /> Solicitar cambios de datos en IVCD
               </button>
               
               {/* Botón de Feedback (Bugs) */}
@@ -663,7 +663,7 @@ export default function App() {
                 href="mailto:creddbcdfst21@outlook.com?subject=Reporte%20de%20Bug%20o%20Problema%20-%20Sistema%20de%20Credenciales" 
                 className="w-full text-gray-500 hover:text-gray-300 font-medium py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition text-xs"
               >
-                <AlertCircle size={14} /> Reportar un problema o bug de la página
+                <AlertCircle size={14} /> Reportar un problema o error de la página
               </a>
 
               {/* Espaciador para empujar el aviso de privacidad hasta abajo si hay espacio */}
@@ -675,7 +675,7 @@ export default function App() {
                   <Shield className="w-4 h-4 text-gray-500 mx-auto mb-2 opacity-70" />
                   <h4 className="text-gray-300 text-[10px] font-bold uppercase tracking-wider mb-2">Aviso de Privacidad y Derechos ARCO</h4>
                   <p className="text-gray-500 text-[10px] leading-relaxed mb-4 text-justify">
-                    Los datos personales mostrados en esta credencial digital se encuentran protegidos. El titular de los mismos tiene pleno derecho a <strong>Acceder, Rectificar, Cancelar u Oponerse</strong> (ARCO) al tratamiento de su información en cualquier momento.
+                    Los datos personales mostrados en este Identificador Visual Corporativo Digital "IVCD" se encuentran protegidos. El titular de los mismos tiene pleno derecho a <strong>Acceder, Rectificar, Cancelar u Oponerse</strong> (ARCO) al tratamiento de su información en cualquier momento.
                   </p>
                   
                   <div className="border-t border-gray-700/50 pt-3">
@@ -684,8 +684,8 @@ export default function App() {
                       <a href="tel:+522204716091" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
                         <Phone size={12} /> +52 220 471 6091
                       </a>
-                      <a href="mailto:creddbcdfst21@outlook.com" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
-                        <Mail size={12} /> creddbcdfst21@outlook.com
+                      <a href="mailto:avalusid@gmail.com" className="text-blue-400 text-[11px] hover:text-blue-300 transition flex items-center gap-1.5 bg-blue-400/10 px-3 py-1.5 rounded-md">
+                        <Mail size={12} /> avalusid@gmail.com
                       </a>
                     </div>
                   </div>
@@ -709,7 +709,7 @@ export default function App() {
           )}
 
         </div>
-        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-[10px] opacity-70">Desarrollado por Fabian_ST. Todos los derechos reservados.</p></div>
+        <div className="w-full bg-[#1a1a1a] py-4 px-4 text-center"><p className="text-white text-[10px] opacity-70">Desarrollado por AvalusID. Todos los derechos reservados.</p></div>
       </div>
     );
   }
