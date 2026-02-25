@@ -573,7 +573,7 @@ export default function App() {
         )}
 
         <div className={`w-full max-w-md bg-[#2d2d2d] flex-grow flex flex-col pb-6 ${isPublicView ? 'pt-6' : ''}`}>
-          <div className="py-4 border-b border-gray-600 mb-6 mx-4"><h1 className="text-white text-center text-xl font-medium tracking-wide">DOCUMENTOS PROBATORIOS</h1></div>
+          <div className="py-4 border-b border-gray-600 mb-6 mx-4"><h1 className="text-white text-center text-xl font-medium tracking-wide">IVCD del Colavorador</h1></div>
           <div className="flex justify-center mb-6">
             {c.fotoPerfil ? <img src={c.fotoPerfil} alt="Perfil" className="w-32 h-32 rounded-[2rem] object-cover shadow-lg bg-white" /> : <div className="w-32 h-32 rounded-[2rem] bg-gray-600 flex items-center justify-center text-white"><User size={40}/></div>}
           </div>
