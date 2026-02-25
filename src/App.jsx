@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye, Phone, Mail } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Trash2, Shield, User, Database, FileText, Upload, Image as ImageIcon, AlertCircle, FileUp, Link, X, Check, Lock, Key, Edit, Eye, Phone, Mail, Search } from 'lucide-react';
 // IMPORTANTE: Cambia estas 2 líneas en tu VS Code quitando el "https://esm.sh/"
 import { createClient } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
@@ -35,6 +35,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(''); 
   const [isSaving, setIsSaving] = useState(false);
+  
+  // --- NUEVO ESTADO PARA EL BUSCADOR ---
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [showShareModal, setShowShareModal] = useState(false);
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
@@ -124,7 +127,7 @@ export default function App() {
         setCurrentView('detail');
       }
     } catch (error) {
-      console.error("Credencial no encontrada.");
+      console.error("IVCD no encontrada.");
     }
   };
 
@@ -303,6 +306,17 @@ export default function App() {
     }
   };
 
+  // --- LÓGICA DE BÚSQUEDA / FILTRADO ---
+  const filteredCredentials = credentials.filter(cred => {
+    const search = searchTerm.toLowerCase();
+    const fullName = `${cred.nombre || ''} ${cred.apellidos || ''}`.toLowerCase();
+    const idVisual = (cred.id_visual || '').toLowerCase();
+    const empresa = (cred.empresa || '').toLowerCase();
+
+    // Filtra si la búsqueda está en el nombre, id o empresa
+    return fullName.includes(search) || idVisual.includes(search) || empresa.includes(search);
+  });
+
   // --- MODALES ---
   const ErrorModal = () => {
     if (!errorMsg) return null;
@@ -361,7 +375,7 @@ export default function App() {
     if (!showSuggestionModal || !selectedCred) return null;
 
     const handleEnviarSugerencia = () => {
-      const subject = encodeURIComponent(`Sugerencia de Cambio - Credencial: ${selectedCred.nombre} ${selectedCred.apellidos}`);
+      const subject = encodeURIComponent(`Sugerencia de Cambio - IVCD: ${selectedCred.nombre} ${selectedCred.apellidos}`);
       const body = encodeURIComponent(`Correo de contacto proporcionado: ${correo}\n\nSugerencia o cambios solicitados:\n${sugerencia}`);
       window.location.href = `mailto:fabiansandtejpublic12@outlook.com?subject=${subject}&body=${body}`;
       
@@ -491,7 +505,7 @@ export default function App() {
       return (
         <div className="min-h-screen bg-[#222222] flex flex-col items-center justify-center p-6 font-sans text-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-          <p className="text-white font-medium">Cargando credencial...</p>
+          <p className="text-white font-medium">Cargando IVCD...</p>
         </div>
       );
     }
@@ -522,7 +536,7 @@ export default function App() {
               <Shield size={32} className="text-blue-500" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-1">Acceso Restringido</h2>
-            <p className="text-gray-400 text-sm">Panel de Administración de Credenciales</p>
+            <p className="text-gray-400 text-sm">Panel de Administración de IVCD</p>
           </div>
           
           <form onSubmit={handleLogin} className="p-8">
@@ -723,7 +737,7 @@ export default function App() {
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden">
           <div className="bg-blue-600 p-6 text-white flex items-center gap-4">
             <button onClick={() => setCurrentView('list')} className="hover:bg-blue-700 p-2 rounded-full transition"><ArrowLeft size={24} /></button>
-            <h2 className="text-2xl font-bold">{formData.id ? 'Editar Credencial' : 'Agregar Nueva Credencial'}</h2>
+            <h2 className="text-2xl font-bold">{formData.id ? 'Editar IVCD' : 'Agregar Nueva IVCD'}</h2>
           </div>
           <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
             <section>
@@ -794,7 +808,7 @@ export default function App() {
             </section>
             <div className="pt-4 border-t flex justify-end gap-3">
               <button type="button" onClick={() => setCurrentView('list')} className="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium transition" disabled={isSaving}>Cancelar</button>
-              <button type="submit" disabled={isSaving} className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-md transition flex items-center gap-2">{isSaving ? 'Guardando...' : (formData.id ? 'Actualizar Credencial' : 'Guardar Credencial')}</button>
+              <button type="submit" disabled={isSaving} className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-md transition flex items-center gap-2">{isSaving ? 'Guardando...' : (formData.id ? 'Actualizar IVCD' : 'Guardar IVCD')}</button>
             </div>
           </form>
         </div>
@@ -808,28 +822,46 @@ export default function App() {
       <Analytics />
       <ErrorModal />
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2"><Database className="text-blue-600" /> Sistema de Credenciales</h1>
-            <p className="text-gray-600 text-sm md:text-base mt-1">Gestor conectado a Supabase</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2"><Database className="text-blue-600" /> Sistema de IVCD</h1>
+            <p className="text-gray-600 text-sm md:text-base mt-1">Gestor de Identidades conectado a Supabase</p>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => setIsAdmin(false)} className="text-sm text-gray-500 hover:text-gray-800 transition font-medium">Cerrar Sesión</button>
-            <button onClick={handleNewRecord} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-all font-bold"><Plus size={20} /> Nuevo Registro</button>
+            <button onClick={handleNewRecord} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-all font-bold"><Plus size={20} /> Nueva IVCD</button>
           </div>
+        </div>
+
+        {/* 🌟 BARRA DE BÚSQUEDA 🌟 */}
+        <div className="mb-8 relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search size={20} className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, ID visual o empresa..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-white shadow-sm text-gray-700 placeholder-gray-400 font-medium"
+          />
         </div>
 
         {isLoading ? (
           <div className="text-center py-10 text-gray-500 animate-pulse font-medium">Conectando a base de datos segura...</div>
-        ) : credentials.length === 0 ? (
+        ) : filteredCredentials.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-200">
             <Shield size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">Base de datos vacía</h3>
-            <p className="text-gray-500 mt-1">Presiona "Nuevo Registro" para agregar tu primera credencial.</p>
+            <h3 className="text-lg font-medium text-gray-900">
+              {searchTerm ? 'No se encontraron resultados' : 'Base de datos vacía'}
+            </h3>
+            <p className="text-gray-500 mt-1">
+              {searchTerm ? 'No hay ninguna IVCD que coincida con tu búsqueda.' : 'Presiona "Nueva IVCD" para agregar tu primera IVCD.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {credentials.map(cred => (
+            {filteredCredentials.map(cred => (
               <div key={cred.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                 <div className="p-5 flex items-start gap-4 flex-grow">
                   <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-100 flex-shrink-0 overflow-hidden">
@@ -840,14 +872,14 @@ export default function App() {
                     <p className="text-sm text-gray-500 truncate">{cred.puesto}</p>
                     <p className="text-xs font-bold text-blue-800 bg-blue-100 inline-block px-2 py-1 rounded mt-1 truncate max-w-full">{cred.empresa}</p>
                     
-                    {/* ID VISUAL EN EL PANEL ADMIN (CON SOLUCIÓN PARA CREDENCIALES VIEJAS) */}
+                    {/* ID VISUAL EN EL PANEL ADMIN */}
                     <div className="mt-2">
                       {cred.id_visual ? (
                         <span className="text-[10px] text-gray-500 font-mono bg-gray-100 border border-gray-200 px-2 py-1 rounded inline-block">
                           iD: {cred.id_visual}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-amber-600 font-mono bg-amber-50 border border-amber-200 px-2 py-1 rounded inline-block" title="Abre y guarda esta credencial para generarle un ID visual">
+                        <span className="text-[10px] text-amber-600 font-mono bg-amber-50 border border-amber-200 px-2 py-1 rounded inline-block" title="Abre y guarda esta IVCD para generarle un ID visual">
                           iD: Sin generar (Edita y guarda)
                         </span>
                       )}
